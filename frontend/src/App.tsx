@@ -26,6 +26,7 @@ import {
 import { DEMO_WORKSPACE, loadWorkspace } from "./api";
 import type { Workspace } from "./api";
 import type { Commitment, MP, Speech } from "./types";
+import { MPActivityProfile } from "./MPActivityProfile";
 
 const STANDALONE_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
@@ -1315,35 +1316,11 @@ function WorkspaceApp() {
               </>
             )}
             {selectedMP && (
-              <>
-                <span className="avatar profile-avatar">
-                  {initials(selectedMP.name)}
-                </span>
-                <h2 className="detail-title">{selectedMP.name}</h2>
-                <p className="muted">
-                  {selectedMP.party} · {selectedMP.district}
-                </p>
-                <p>{selectedMP.bio}</p>
-                <div className="inline-note">
-                  Role listed in supplied dataset: {selectedMP.current_role}.
-                  Effective dates and current officeholder status are not
-                  verified.
-                </div>
-                <div className="chips">
-                  {selectedMP.policy_focus.map((f) => (
-                    <span key={f}>{f}</span>
-                  ))}
-                </div>
-                <h3>Speeches in this dataset</h3>
-                {data.speeches
-                  .filter((s) => s.speaker_id === selectedMP.id)
-                  .map((s) => renderSpeech(s))}
-                {!data.speeches.some((s) => s.speaker_id === selectedMP.id) && (
-                  <Empty>
-                    No speech records are linked to this profile yet.
-                  </Empty>
-                )}
-              </>
+              <MPActivityProfile
+                mp={selectedMP}
+                onClose={closeDetail}
+                onOpenSpeech={(speechId) => open("speech", speechId)}
+              />
             )}
             {selectedTimeline && (
               <>

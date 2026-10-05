@@ -903,5 +903,395 @@
         }
       ]
     }
+  ],
+  "attendance": [
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240314.pdf",
+      "source_doc_id": "Hansard Vol 308",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0307",
+      "sitting_date": "2024-03-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240307.pdf",
+      "source_doc_id": "Hansard Vol 307",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0221",
+      "sitting_date": "2024-02-21",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240221.pdf",
+      "source_doc_id": "Hansard Vol 306",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0207",
+      "sitting_date": "2024-02-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240207.pdf",
+      "source_doc_id": "Hansard Vol 306",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0124",
+      "sitting_date": "2024-01-24",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "absent",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240124.pdf",
+      "source_doc_id": "Hansard Vol 305",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0117",
+      "sitting_date": "2024-01-17",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240117.pdf",
+      "source_doc_id": "Hansard Vol 305",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2023-1214",
+      "sitting_date": "2023-12-14",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20231214.pdf",
+      "source_doc_id": "Hansard Vol 302",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2023-1211",
+      "sitting_date": "2023-12-11",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20231211.pdf",
+      "source_doc_id": "Hansard Vol 302",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2023-1130",
+      "sitting_date": "2023-11-30",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "missing_data",
+      "source_url": null,
+      "source_doc_id": null,
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-akd",
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240522.pdf",
+      "source_doc_id": "Hansard Vol 310",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "sitting_id": "sit-2023-1211",
+      "sitting_date": "2023-12-11",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20231211.pdf",
+      "source_doc_id": "Hansard Vol 302",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "sitting_id": "sit-2024-0307",
+      "sitting_date": "2024-03-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240307.pdf",
+      "source_doc_id": "Hansard Vol 307",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240314.pdf",
+      "source_doc_id": "Hansard Vol 308",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240522.pdf",
+      "source_doc_id": "Hansard Vol 310",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "sitting_id": "sit-2024-0124",
+      "sitting_date": "2024-01-24",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "absent",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240124.pdf",
+      "source_doc_id": "Hansard Vol 305",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sajith",
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240522.pdf",
+      "source_doc_id": "Hansard Vol 310",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sajith",
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240314.pdf",
+      "source_doc_id": "Hansard Vol 308",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sajith",
+      "sitting_id": "sit-2024-0207",
+      "sitting_date": "2024-02-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "absent",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240207.pdf",
+      "source_doc_id": "Hansard Vol 306",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sajith",
+      "sitting_id": "sit-2023-1211",
+      "sitting_date": "2023-12-11",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20231211.pdf",
+      "source_doc_id": "Hansard Vol 302",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-ranil",
+      "sitting_id": "sit-2024-0207",
+      "sitting_date": "2024-02-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240207.pdf",
+      "source_doc_id": "Hansard Vol 306",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-ranil",
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "absent",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240314.pdf",
+      "source_doc_id": "Hansard Vol 308",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-ranil",
+      "sitting_id": "sit-2023-1211",
+      "sitting_date": "2023-12-11",
+      "parliament_session": "9th Parliament 3rd Session",
+      "recorded_status": "missing_data",
+      "source_url": null,
+      "source_doc_id": null,
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sumanthiran",
+      "sitting_id": "sit-2024-0124",
+      "sitting_date": "2024-01-24",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240124.pdf",
+      "source_doc_id": "Hansard Vol 305",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sumanthiran",
+      "sitting_id": "sit-2024-0307",
+      "sitting_date": "2024-03-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240307.pdf",
+      "source_doc_id": "Hansard Vol 307",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-sumanthiran",
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "missing_data",
+      "source_url": null,
+      "source_doc_id": null,
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-alisabry",
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "present",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240314.pdf",
+      "source_doc_id": "Hansard Vol 308",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "mp_id": "mp-alisabry",
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "recorded_status": "absent",
+      "source_url": "https://parliament.lk/uploads/hansard/doc_20240522.pdf",
+      "source_doc_id": "Hansard Vol 310",
+      "fetched_at": "2026-01-10T09:00:00Z"
+    }
+  ],
+  "memberships": [
+    {
+      "mp_id": "mp-akd",
+      "parliament_session": "9th Parliament 3rd Session",
+      "joined_date": "2023-10-02",
+      "left_date": "2024-01-15"
+    },
+    {
+      "mp_id": "mp-akd",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": null
+    },
+    {
+      "mp_id": "mp-sajith",
+      "parliament_session": "9th Parliament 3rd Session",
+      "joined_date": "2023-10-02",
+      "left_date": "2024-01-15"
+    },
+    {
+      "mp_id": "mp-sajith",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": null
+    },
+    {
+      "mp_id": "mp-harsha",
+      "parliament_session": "9th Parliament 3rd Session",
+      "joined_date": "2023-10-02",
+      "left_date": "2024-01-15"
+    },
+    {
+      "mp_id": "mp-harsha",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": null
+    },
+    {
+      "mp_id": "mp-ranil",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": "2024-09-30"
+    },
+    {
+      "mp_id": "mp-sumanthiran",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": null
+    },
+    {
+      "mp_id": "mp-alisabry",
+      "parliament_session": "9th Parliament 4th Session",
+      "joined_date": "2024-01-16",
+      "left_date": null
+    }
+  ],
+  "sittings": [
+    {
+      "sitting_id": "sit-2023-1130",
+      "sitting_date": "2023-11-30",
+      "parliament_session": "9th Parliament 3rd Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2023-1211",
+      "sitting_date": "2023-12-11",
+      "parliament_session": "9th Parliament 3rd Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2023-1214",
+      "sitting_date": "2023-12-14",
+      "parliament_session": "9th Parliament 3rd Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0117",
+      "sitting_date": "2024-01-17",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0124",
+      "sitting_date": "2024-01-24",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0207",
+      "sitting_date": "2024-02-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0221",
+      "sitting_date": "2024-02-21",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0307",
+      "sitting_date": "2024-03-07",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0314",
+      "sitting_date": "2024-03-14",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    },
+    {
+      "sitting_id": "sit-2024-0522",
+      "sitting_date": "2024-05-22",
+      "parliament_session": "9th Parliament 4th Session",
+      "sitting_type": "House"
+    }
   ]
 }

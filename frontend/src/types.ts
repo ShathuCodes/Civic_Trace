@@ -154,3 +154,86 @@ export interface DashboardStats {
   video_hours_synced: number;
   active_pilot_sessions: string[];
 }
+
+// --- MP Activity Profile ---
+
+export interface AttendanceRecord {
+  mp_id: string;
+  sitting_id: string;
+  sitting_date: string;
+  parliament_session: string;
+  recorded_status: "present" | "absent" | "missing_data" | string;
+  source_url: string | null;
+  source_doc_id: string | null;
+  fetched_at: string;
+}
+
+export interface ActivitySummary {
+  mp_id: string;
+  mp_name: string;
+  party: string;
+  district: string;
+  current_role: string;
+  memberships?: Array<{
+    parliament_session: string;
+    joined_date: string;
+    left_date: string | null;
+  }>;
+  filters_applied: {
+    date_from: string | null;
+    date_to: string | null;
+    session: string | null;
+  };
+  attendance: {
+    available: boolean;
+    present: number;
+    absent: number;
+    missing_data: number;
+    eligible_sitting_days: number | null;
+    attendance_rate: number | null;
+    rate_denominator_label: string;
+    coverage_note: string;
+  };
+  speeches: {
+    count: number;
+    label: string;
+    coverage_note: string;
+    indexed_sessions: string[];
+    topics: Array<{ topic: string; count: number }>;
+    topics_note: string;
+  };
+  dataset_note: string;
+  loaded_at: string | null;
+}
+
+export interface AttendancePage {
+  available: boolean;
+  records: AttendanceRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  note: string;
+}
+
+export interface SpeechSummary {
+  id: string;
+  title: string;
+  sitting_date: string;
+  session_name: string;
+  topic: string;
+  summary: string;
+  hansard_vol: string;
+  hansard_page: string;
+  hansard_pdf_url: string;
+  duration: string;
+  has_audio?: boolean;
+}
+
+export interface SpeechPage {
+  speeches: SpeechSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+  label: string;
+  coverage_note: string;
+}
