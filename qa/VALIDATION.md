@@ -1,4 +1,6 @@
-# Validation of this patch
+# Validation notes
+
+See also [docs/STATUS.md](../docs/STATUS.md) for product completion context.
 
 - TypeScript and Vite production build: PASS.
 - oxlint: PASS, no warnings after cleanup.

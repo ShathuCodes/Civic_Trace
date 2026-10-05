@@ -1,0 +1,14 @@
+---
+description: CivicTrace trust and honesty product rules for all agents
+alwaysApply: true
+---
+
+# CivicTrace trust rules
+
+- Evidence workspace first: cite Hansard/news; do not invent political certainty.
+- Never add “live verified”, fake accuracy, or loyalty scores without measured eval + human review.
+- Data load failures must surface errors; never silently fall back to demo data.
+- Missing evidence is not a broken promise; Hansard proves speech, not truth.
+- Keep secrets server-side only; never put DB URIs or API keys in `VITE_*` or fixtures.
+- Prefer extending provenance and review fields over decorative UI or composite rankings.
+- Read `docs/PRD.md`, `docs/SRS.md`, and `AGENTS.md` before large feature work.

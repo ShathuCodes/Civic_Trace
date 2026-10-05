@@ -1,5 +1,7 @@
 # MongoDB handoff and connection guide
 
+Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [application-schema.json](./application-schema.json) · [ROADMAP.md](./ROADMAP.md)
+
 The adapter is implemented; a real database connection has NOT been tested because no URI or real schema was supplied.
 
 ## Ask your friend for these items
