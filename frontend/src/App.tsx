@@ -16,17 +16,29 @@ import {
   Landmark,
   LayoutDashboard,
   Menu,
+  Mic,
+  MicOff,
   Moon,
+  Pause,
+  Play,
   Search,
   SlidersHorizontal,
+  Square,
   Sun,
   Users,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { DEMO_WORKSPACE, loadWorkspace } from "./api";
 import type { Workspace } from "./api";
 import type { Commitment, MP, Speech } from "./types";
 import { MPActivityProfile } from "./MPActivityProfile";
+import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
+import type { Language } from "./i18n/types";
+import { SUPPORTED_LANGUAGES } from "./i18n/types";
+import { useVoiceInput } from "./hooks/useVoiceInput";
+import { useSpeakText } from "./hooks/useSpeakText";
 
 const STANDALONE_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
@@ -40,21 +52,22 @@ type Page =
   | "saved";
 type RecordKind = "speech" | "commitment" | "mp" | "timeline";
 type Selection = { kind: RecordKind; id: string };
-const pages: { id: Page; title: string; icon: typeof Search }[] = [
-  { id: "overview", title: "Overview", icon: LayoutDashboard },
-  { id: "speeches", title: "Speech explorer", icon: BookOpen },
-  { id: "commitments", title: "Commitments", icon: FileText },
-  { id: "compare", title: "Compare leaders", icon: GitCompareArrows },
-  { id: "timelines", title: "Issue timelines", icon: Clock3 },
-  { id: "mps", title: "People & profiles", icon: Users },
-  { id: "saved", title: "Saved records", icon: Bookmark },
-];
+const PAGE_IDS: Page[] = ["overview", "speeches", "commitments", "compare", "timelines", "mps", "saved"];
+const PAGE_ICONS: Record<Page, typeof Search> = {
+  overview: LayoutDashboard,
+  speeches: BookOpen,
+  commitments: FileText,
+  compare: GitCompareArrows,
+  timelines: Clock3,
+  mps: Users,
+  saved: Bookmark,
+};
 function readRoute() {
   const params = new URLSearchParams(location.hash.slice(1));
   const page = params.get("page") as Page;
   const kind = params.get("kind") as RecordKind;
   return {
-    page: pages.some((p) => p.id === page) ? page : ("overview" as Page),
+    page: PAGE_IDS.includes(page) ? page : ("overview" as Page),
     query: params.get("q") || "",
     selection:
       ["speech", "commitment", "mp", "timeline"].includes(kind) &&
@@ -258,12 +271,20 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 }
 export default function App() {
   return (
-    <Boundary>
-      <WorkspaceApp />
-    </Boundary>
+    <LanguageProvider>
+      <Boundary>
+        <WorkspaceApp />
+      </Boundary>
+    </LanguageProvider>
   );
 }
 function WorkspaceApp() {
+  const { t, language, setLanguage } = useLanguage();
+  const pages = PAGE_IDS.map((id) => ({
+    id,
+    title: t.nav[id as keyof typeof t.nav] as string,
+    icon: PAGE_ICONS[id],
+  }));
   const [route, setRoute] = useState(readRoute);
   const [query, setQuery] = useState(route.query);
   const [data, setData] = useState<Workspace | null>(
@@ -272,8 +293,8 @@ function WorkspaceApp() {
   const [loading, setLoading] = useState(!STANDALONE_DEMO);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const [topic, setTopic] = useState("All topics");
-  const [status, setStatus] = useState("All statuses");
+  const [topic, setTopic] = useState(""); // empty = "All topics" sentinel
+  const [status, setStatus] = useState(""); // empty = "All statuses" sentinel
   const [sort, setSort] = useState("newest");
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobile, setMobile] = useState(
@@ -297,16 +318,25 @@ function WorkspaceApp() {
   });
   const [toast, setToast] = useState("");
   const [compare, setCompare] = useState<string[]>([]);
-  const [language, setLanguage] = useState("en");
+  // transcript language (separate from UI language)
+  const [transcriptLang, setTranscriptLang] = useState("en");
   const searchRef = useRef<HTMLInputElement>(null);
+  const voice = useVoiceInput({
+    language,
+    onResult: (text) => {
+      setQuery(text);
+      searchRef.current?.focus();
+    },
+  });
+  const tts = useSpeakText();
   useEffect(() => {
     const change = () => {
       const r = readRoute();
       setRoute(r);
       setQuery(r.query);
       if (r.page !== route.page) {
-        setTopic("All topics");
-        setStatus("All statuses");
+        setTopic("");
+        setStatus("");
       }
       setMenuOpen(false);
     };
@@ -419,7 +449,7 @@ function WorkspaceApp() {
             seg.text_ta || "",
           ]),
         ) &&
-        (topic === "All topics" || s.topic === topic),
+        (!topic || s.topic === topic),
     )
     .sort((a, b) =>
       sort === "oldest"
@@ -429,7 +459,7 @@ function WorkspaceApp() {
   const commitments = (data?.commitments || []).filter(
     (c) =>
       matches(c.title, c.sponsor_name, c.category, c.original_quote) &&
-      (status === "All statuses" || c.current_status === status),
+      (!status || c.current_status === status),
   );
   const people = (data?.mps || []).filter((m) =>
     matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district),
@@ -568,7 +598,7 @@ function WorkspaceApp() {
           document.getElementById("main")?.focus();
         }}
       >
-        Skip to content
+        {t.nav.skipToContent}
       </a>
       {menuOpen && (
         <button
@@ -587,14 +617,14 @@ function WorkspaceApp() {
             <Landmark size={23} />
           </span>
           <span>
-            Civic Trace<span className="brand-sub">THE PUBLIC RECORD</span>
+            {t.brand.title}<span className="brand-sub">{t.brand.subtitle}</span>
           </span>
         </button>
         <div className="workspace-label">
           <span className="flag-mark" /> Sri Lanka{" "}
-          <span className="pilot">PILOT</span>
+          <span className="pilot">{t.brand.pilot}</span>
         </div>
-        <span className="nav-label">WORKSPACE</span>
+        <span className="nav-label">{t.brand.workspace}</span>
         <nav>
           {pages.map(({ id, title, icon: Icon }) => (
             <button
@@ -614,14 +644,14 @@ function WorkspaceApp() {
         <div className="sidebar-bottom">
           <div className="principle">
             <BookOpen size={18} />
-            <h4>Start with the source.</h4>
-            <p>A clearer view of public life, one record at a time.</p>
+            <h4>{t.nav.startWithSource}</h4>
+            <p>{t.nav.startWithSourceSub}</p>
             <button className="text-link" onClick={() => setHelp(true)}>
-              How to read the evidence <ArrowUpRight size={14} />
+              {t.nav.howToReadEvidence} <ArrowUpRight size={14} />
             </button>
           </div>
           <button className="nav-item" onClick={() => setHelp(true)}>
-            <CircleHelp size={18} /> About this pilot
+            <CircleHelp size={18} /> {t.nav.aboutPilot}
           </button>
           <div className="sidebar-foot">
             Civic Trace <span>Team AI ACES</span>
@@ -633,25 +663,51 @@ function WorkspaceApp() {
           <div className="breadcrumb">
             <button
               className="icon-button mobile-menu"
-              aria-label="Open navigation"
+              aria-label={t.nav.openNav}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(!menuOpen)}
             >
               <Menu size={20} />
             </button>
-            <span>Workspace</span>
+            <span>{t.brand.workspace}</span>
             <ChevronRight size={14} />
             <strong>{current.title}</strong>
           </div>
           <div className="top-actions">
-            <span className="edition">SRI LANKA EDITION</span>
+            <span className="edition">{t.brand.edition}</span>
             <button
               className="icon-button"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+              aria-label={theme === "light" ? t.nav.switchToDark : t.nav.switchToLight}
             >
               {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
             </button>
+            {/* Language switcher – segmented on desktop, select on mobile */}
+            {mobile ? (
+              <select
+                className="lang-select"
+                aria-label={t.nav.selectLanguage}
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+              >
+                {SUPPORTED_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>{l.nativeLabel}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="lang-seg" role="group" aria-label={t.nav.selectLanguage}>
+                {SUPPORTED_LANGUAGES.map((l) => (
+                  <button
+                    key={l.code}
+                    className={`lang-seg-btn ${language === l.code ? "active" : ""}`}
+                    onClick={() => setLanguage(l.code)}
+                    aria-pressed={language === l.code}
+                  >
+                    {l.nativeLabel}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </header>
         <main id="main" tabIndex={-1}>
@@ -660,49 +716,37 @@ function WorkspaceApp() {
             <span>
               <strong>
                 {data?.meta.mode === "mongodb"
-                  ? "Connected dataset"
-                  : "Demonstration workspace"}
+                  ? t.overview.connectedDataset
+                  : t.overview.demoWorkspace}
               </strong>
               <span className="notice-detail">
                 {data?.meta.mode === "mongodb"
-                  ? " · Imported records awaiting source review."
-                  : " · Sample records for exploring the product. Not verified public evidence."}
+                  ? ` · ${t.overview.connectedNotice}`
+                  : ` · ${t.overview.demoNotice}`}
               </span>
             </span>
             <button onClick={() => setHelp(true)}>
-              About the data <ArrowUpRight size={13} />
+              {t.overview.aboutData} <ArrowUpRight size={13} />
             </button>
           </div>
           <section className="page-heading">
             <div>
               <span className="eyebrow">
-                {page === "overview"
-                  ? "OPEN RECORDS. INFORMED CITIZENS."
-                  : "CIVIC TRACE / EXPLORE"}{" "}
+                {page === "overview" ? t.overview.eyebrow : t.speeches.eyebrow}{" "}
               </span>
               <h1>
-                {page === "overview"
-                  ? "The public record, connected."
-                  : current.title}
+                {page === "overview" ? t.overview.heroTitle : current.title}
               </h1>
               <p>
-                {
-                  {
-                    overview:
-                      "Follow the debate. Trace the commitment. See the evidence.",
-                    speeches:
-                      "Find what was said, by whom, and where to read it.",
-                    commitments:
-                      "Follow a promise from its original words to the available evidence.",
-                    compare:
-                      "Read policy positions side by side. Context before conclusions.",
-                    timelines:
-                      "Connect the debate, the decisions, and what followed.",
-                    mps: "Explore the people behind the parliamentary record.",
-                    saved:
-                      "Your reading list, stored privately in this browser.",
-                  }[page]
-                }
+                {{
+                  overview: t.overview.heroDesc,
+                  speeches: t.speeches.desc,
+                  commitments: t.commitments.desc,
+                  compare: t.compare.desc,
+                  timelines: t.timelines.desc,
+                  mps: t.mps.desc,
+                  saved: t.saved.desc,
+                }[page]}
               </p>
             </div>
             {page === "overview" && (
@@ -710,49 +754,126 @@ function WorkspaceApp() {
                 className="button primary"
                 onClick={() => navigate("speeches")}
               >
-                Explore the records <ArrowRight size={16} />
+                {t.overview.exploreBtn} <ArrowRight size={16} />
               </button>
             )}
           </section>
-          <form
-            className="search-bar"
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate(page === "overview" ? "speeches" : page, null, query);
-            }}
-          >
-            <Search size={20} />
-            <input
-              ref={searchRef}
-              aria-label="Search records"
-              placeholder="Search a topic, a person, or a phrase…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query ? (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Clear search"
-                onClick={() => {
-                  setQuery("");
-                  navigate(page);
-                }}
-              >
-                <X size={17} />
+          <div className="search-section">
+            <form
+              className="search-bar"
+              onSubmit={(e) => {
+                e.preventDefault();
+                voice.stop();
+                navigate(page === "overview" ? "speeches" : page, null, query);
+              }}
+            >
+              <Search size={20} />
+              <input
+                ref={searchRef}
+                aria-label={t.nav.searchPlaceholder}
+                placeholder={
+                  voice.status === "listening"
+                    ? `${t.voice.micRecording} (${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})`
+                    : t.nav.searchPlaceholder
+                }
+                value={voice.status === "listening" ? (voice.interimTranscript || query) : query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {voice.isSupported && (
+                <button
+                  type="button"
+                  className={`icon-button voice-btn ${voice.status === "listening" ? "is-recording" : ""}`}
+                  aria-label={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
+                  title={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
+                  onClick={() => {
+                    if (voice.status === "listening") {
+                      voice.stop();
+                    } else {
+                      voice.start();
+                    }
+                  }}
+                >
+                  {voice.status === "listening" ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              )}
+              {query ? (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={t.nav.clearSearch}
+                  onClick={() => {
+                    setQuery("");
+                    voice.reset();
+                    navigate(page);
+                  }}
+                >
+                  <X size={17} />
+                </button>
+              ) : (
+                <kbd>Ctrl K</kbd>
+              )}
+              <button className="search-submit" type="submit">
+                {t.nav.searchBtn} <ArrowRight size={15} />
               </button>
-            ) : (
-              <kbd>Ctrl K</kbd>
+            </form>
+
+            {voice.status === "listening" && (
+              <div className="voice-status listening">
+                <span className="pulse-dot" />
+                <span>{t.voice.micRecording} ({SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})</span>
+                <button type="button" className="text-link small" onClick={voice.stop}>
+                  {t.voice.micStop}
+                </button>
+                <button type="button" className="text-link small muted" onClick={voice.cancel}>
+                  {t.voice.micCancel}
+                </button>
+              </div>
             )}
-            <button className="search-submit" type="submit">
-              Search <ArrowRight size={15} />
-            </button>
-          </form>
+            {voice.status === "ready" && voice.transcript && (
+              <div className="voice-status ready">
+                <span>{t.voice.readyToSubmit}</span>
+                <button
+                  type="button"
+                  className="button small-button primary"
+                  onClick={() => {
+                    voice.reset();
+                    navigate(page === "overview" ? "speeches" : page, null, query);
+                  }}
+                >
+                  {t.nav.searchBtn} <ArrowRight size={14} />
+                </button>
+                <button type="button" className="text-link small muted" onClick={voice.reset}>
+                  {t.voice.micCancel}
+                </button>
+              </div>
+            )}
+            {voice.status === "error" && voice.error && (
+              <div className="voice-status error">
+                <span>
+                  {voice.error.type === "permission_denied"
+                    ? t.voice.micDenied
+                    : voice.error.type === "no_speech"
+                      ? t.voice.noSpeechDetected
+                      : voice.error.type === "unsupported"
+                        ? t.voice.unsupportedBrowser
+                        : voice.error.type === "network"
+                          ? t.voice.networkError
+                          : t.voice.serviceUnavailable}
+                </span>
+                <button type="button" className="text-link small" onClick={voice.start}>
+                  {t.voice.micRetry}
+                </button>
+                <button type="button" className="text-link small muted" onClick={voice.reset}>
+                  {t.voice.useFallback}
+                </button>
+              </div>
+            )}
+          </div>
           {loading ? (
             <div
               className="skeleton-grid"
               role="status"
-              aria-label="Loading records"
+              aria-label={t.common.loading}
             >
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="skeleton" />
@@ -760,7 +881,7 @@ function WorkspaceApp() {
             </div>
           ) : error ? (
             <div className="error-state" role="alert">
-              <h2>Data service unavailable</h2>
+              <h2>{t.common.errorTitle}</h2>
               <p>{error}</p>
               <button
                 className="button primary"
@@ -770,7 +891,7 @@ function WorkspaceApp() {
                   setAttempt((a) => a + 1);
                 }}
               >
-                Retry connection
+                {t.common.retry}
               </button>
               <button
                 className="button"
@@ -779,7 +900,7 @@ function WorkspaceApp() {
                   setError("");
                 }}
               >
-                Explore labelled sample data
+                {t.common.exploreSample}
               </button>
             </div>
           ) : (
@@ -791,26 +912,26 @@ function WorkspaceApp() {
                       {[
                         {
                           value: data.speeches.length,
-                          label: "Speech records",
-                          note: "In this dataset",
+                          label: t.overview.statSpeeches,
+                          note: t.overview.statSpeechesSub,
                           icon: BookOpen,
                         },
                         {
                           value: data.mps.length,
-                          label: "Public figures",
-                          note: "Profiles in the pilot",
+                          label: t.overview.statMps,
+                          note: t.overview.statMpsSub,
                           icon: Users,
                         },
                         {
                           value: data.commitments.length,
-                          label: "Commitments",
-                          note: "Assessment requires review",
+                          label: t.overview.statCommitments,
+                          note: t.overview.statCommitmentsSub,
                           icon: FileText,
                         },
                         {
                           value: data.timelines.length,
-                          label: "Issue timelines",
-                          note: "Context across events",
+                          label: t.overview.statTimelines,
+                          note: t.overview.statTimelinesSub,
                           icon: Clock3,
                         },
                       ].map(({ value, label, note, icon: Icon }) => (
@@ -829,37 +950,34 @@ function WorkspaceApp() {
                         <div className="section-head">
                           <div>
                             <span className="eyebrow">FROM THE CHAMBER</span>
-                            <h2>Explore the debate</h2>
+                            <h2>{t.overview.recentHeading}</h2>
                           </div>
                           <button
                             className="text-link"
                             onClick={() => navigate("speeches", null, query)}
                           >
-                            All speeches <ArrowRight size={15} />
+                            {t.overview.viewAll} <ArrowRight size={15} />
                           </button>
                         </div>
                         {speeches.slice(0, 4).map((s) => renderSpeech(s))}
                         {!speeches.length && (
-                          <Empty>Try another name, topic, or phrase.</Empty>
+                          <Empty>{t.speeches.noSpeechesDesc}</Empty>
                         )}
                       </section>
                       <aside className="issue-panel">
                         <span className="eyebrow">FOLLOW AN ISSUE</span>
-                        <h2>See the bigger picture.</h2>
-                        <p>
-                          Move beyond a single speech. Follow a policy through
-                          the public record.
-                        </p>
-                        {data.timelines.map((t, i) => (
+                        <h2>{t.overview.recentSub}</h2>
+                        <p>{t.overview.featuredCommitmentsSub}</p>
+                        {data.timelines.map((tl, i) => (
                           <button
                             className="issue-link"
-                            key={t.id}
-                            onClick={() => open("timeline", t.id)}
+                            key={tl.id}
+                            onClick={() => open("timeline", tl.id)}
                           >
                             <span className="issue-number">0{i + 1}</span>
                             <span>
-                              {t.topic}
-                              <small>{t.time_span}</small>
+                              {tl.topic}
+                              <small>{tl.time_span}</small>
                             </span>
                             <ArrowUpRight size={18} />
                           </button>
@@ -875,13 +993,13 @@ function WorkspaceApp() {
                     <div className="section-head standalone">
                       <div>
                         <span className="eyebrow">FROM WORDS TO FOLLOW-UP</span>
-                        <h2>Commitments in focus</h2>
+                        <h2>{t.overview.featuredCommitments}</h2>
                       </div>
                       <button
                         className="text-link"
                         onClick={() => navigate("commitments")}
                       >
-                        View tracker <ArrowRight size={15} />
+                        {t.overview.viewAll} <ArrowRight size={15} />
                       </button>
                     </div>
                     <div className="card-grid">
@@ -895,40 +1013,40 @@ function WorkspaceApp() {
                       <div className="filters">
                         <SlidersHorizontal size={16} />
                         <label className="sr-only" htmlFor="topic">
-                          Topic
+                          {t.speeches.filterTopic}
                         </label>
                         <select
                           id="topic"
                           value={topic}
                           onChange={(e) => setTopic(e.target.value)}
                         >
-                          <option>All topics</option>
+                          <option value="">{t.speeches.allTopics}</option>
                           {Array.from(
                             new Set(data.speeches.map((s) => s.topic)),
-                          ).map((t) => (
-                            <option key={t}>{t}</option>
+                          ).map((tp) => (
+                            <option key={tp}>{tp}</option>
                           ))}
                         </select>
                         <span className="result-count">
-                          {speeches.length} records
+                          {speeches.length} {t.common.records}
                         </span>
                       </div>
                       <label className="sort">
-                        Sort by{" "}
+                        {t.speeches.sortBy}{" "}
                         <select
-                          aria-label="Sort speeches"
+                          aria-label={t.speeches.sortBy}
                           value={sort}
                           onChange={(e) => setSort(e.target.value)}
                         >
-                          <option value="newest">Newest first</option>
-                          <option value="oldest">Oldest first</option>
+                          <option value="newest">{t.speeches.newest}</option>
+                          <option value="oldest">{t.speeches.oldest}</option>
                         </select>
                       </label>
                     </div>
                     <section className="panel">
                       {speeches.map((s) => renderSpeech(s))}
                       {!speeches.length && (
-                        <Empty>Try a broader query or choose all topics.</Empty>
+                        <Empty title={t.speeches.noSpeechesFound}>{t.speeches.noSpeechesDesc}</Empty>
                       )}
                     </section>
                   </>
@@ -937,15 +1055,14 @@ function WorkspaceApp() {
                   <>
                     <div className="filter-bar">
                       <span className="result-count">
-                        {commitments.length} commitments · Status labels are
-                        unreviewed assessments
+                        {commitments.length} {t.nav.commitments} · {t.commitments.unreviewedAssessment}
                       </span>
                       <select
-                        aria-label="Filter commitment status"
+                        aria-label={t.commitments.filterStatus}
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
                       >
-                        <option>All statuses</option>
+                        <option value="">{t.commitments.allStatuses}</option>
                         {Array.from(
                           new Set(
                             data.commitments.map((c) => c.current_status),
@@ -959,7 +1076,7 @@ function WorkspaceApp() {
                       {commitments.map((c) => renderCommitment(c))}
                     </div>
                     {!commitments.length && (
-                      <Empty>Try another topic or status.</Empty>
+                      <Empty>{t.commitments.noCommitmentsFound}</Empty>
                     )}
                   </>
                 )}
@@ -967,30 +1084,29 @@ function WorkspaceApp() {
                   <>
                     <div className="filter-bar">
                       <span className="result-count">
-                        {people.length} profiles · Roles reflect the supplied
-                        dataset, not a current officeholder register
+                        {people.length} {t.mps.desc}
                       </span>
                     </div>
                     <div className="card-grid">
                       {people.map((m) => renderPerson(m))}
                     </div>
                     {!people.length && (
-                      <Empty>Try a name, party, or district.</Empty>
+                      <Empty>{t.mps.noMpsFound}</Empty>
                     )}
                   </>
                 )}
                 {page === "timelines" && (
                   <div className="timeline-cards">
-                    {timelines.map((t) => (
-                      <article className="panel timeline-card" key={t.id}>
+                    {timelines.map((tl) => (
+                      <article className="panel timeline-card" key={tl.id}>
                         <div>
                           <span className="eyebrow">
-                            {t.topic} · {t.time_span}
+                            {tl.topic} · {tl.time_span}
                           </span>
-                          <h2>{t.title}</h2>
-                          <p>{t.description}</p>
+                          <h2>{tl.title}</h2>
+                          <p>{tl.description}</p>
                           <div className="timeline-preview">
-                            {t.events.slice(0, 4).map((e, i) => (
+                            {tl.events.slice(0, 4).map((e, i) => (
                               <span key={i}>
                                 <i />
                                 {e.stage}
@@ -1001,21 +1117,21 @@ function WorkspaceApp() {
                         </div>
                         <button
                           className="button"
-                          onClick={() => open("timeline", t.id)}
+                          onClick={() => open("timeline", tl.id)}
                         >
-                          Explore timeline <ArrowRight size={16} />
+                          {t.timelines.eventsPipeline} <ArrowRight size={16} />
                         </button>
                       </article>
                     ))}
                     {!timelines.length && (
-                      <Empty>Try another policy topic.</Empty>
+                      <Empty>{t.timelines.desc}</Empty>
                     )}
                   </div>
                 )}
                 {page === "compare" && (
                   <>
                     <div className="comparison-picker">
-                      <span className="eyebrow">CHOOSE 2–3 PEOPLE</span>
+                      <span className="eyebrow">{t.compare.selectPrompt}</span>
                       <div className="choice-list">
                         {people.map((m) => (
                           <button
@@ -1043,22 +1159,19 @@ function WorkspaceApp() {
                       </div>
                     </div>
                     {selectedLeaders.length < 2 ? (
-                      <Empty title="A fairer comparison starts with context">
-                        Choose at least two people to compare the positions in
-                        this dataset. No rankings or composite scores.
+                      <Empty title={t.compare.desc}>
+                        {t.compare.selectPrompt}
                       </Empty>
                     ) : (
                       <>
                         <div className="inline-note">
-                          Positions below are supplied summaries without
-                          claim-level citations. Treat them as unreviewed; open
-                          related speeches for context.
+                          {t.compare.noStance}
                         </div>
                         <div className="table-scroll">
                           <table className="comparison-table">
                             <thead>
                               <tr>
-                                <th>Policy topic</th>
+                                <th>{t.compare.stanceMatrix}</th>
                                 {selectedLeaders.map((m) => (
                                   <th key={m.id}>
                                     <span className="avatar">
@@ -1072,21 +1185,21 @@ function WorkspaceApp() {
                                       className="text-link"
                                       onClick={() => open("mp", m.id)}
                                     >
-                                      View records <ArrowUpRight size={13} />
+                                      {t.mps.viewProfile} <ArrowUpRight size={13} />
                                     </button>
                                   </th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
-                              {comparisonTopics.map((t) => (
-                                <tr key={t}>
-                                  <th scope="row">{t}</th>
+                              {comparisonTopics.map((topic) => (
+                                <tr key={topic}>
+                                  <th scope="row">{topic}</th>
                                   {selectedLeaders.map((m) => (
                                     <td key={m.id}>
-                                      {m.stances[t] || (
+                                      {m.stances[topic] || (
                                         <span className="muted">
-                                          No recorded position
+                                          {t.compare.noStance}
                                         </span>
                                       )}
                                     </td>
@@ -1104,7 +1217,7 @@ function WorkspaceApp() {
                   <>
                     <div className="filter-bar">
                       <span className="result-count">
-                        Saved on this device · No account required
+                        {t.saved.desc}
                       </span>
                     </div>
                     <section className="panel">
@@ -1121,15 +1234,13 @@ function WorkspaceApp() {
                         .map((m) => renderPerson(m))}
                     </div>
                     {!saved.length && (
-                      <Empty title="Keep the records that matter">
-                        Use the bookmark beside a record to build your reading
-                        list.
+                      <Empty title={t.saved.noSavedTitle}>
+                        {t.saved.noSavedDesc}
                       </Empty>
                     )}
                     {!!saved.length && (
                       <p className="muted small">
-                        Only matching records in the current dataset are shown.
-                        Clear search if a saved record is missing.
+                        {t.saved.storageUnavailable}
                       </p>
                     )}
                   </>
@@ -1139,11 +1250,11 @@ function WorkspaceApp() {
           )}
           <footer className="footer">
             <span>
-              <Landmark size={14} /> Civic Trace <span className="dot">/</span>{" "}
+              <Landmark size={14} /> {t.brand.title} <span className="dot">/</span>{" "}
               Public information. Better understood.
             </span>
             <button onClick={() => setHelp(true)}>
-              Sources & methodology <ArrowUpRight size={13} />
+              {t.dialogs.aboutTitle} <ArrowUpRight size={13} />
             </button>
           </footer>
         </main>
@@ -1154,13 +1265,13 @@ function WorkspaceApp() {
             <div className="detail-tools">
               <span className="status neutral">
                 {data.meta.mode === "demo"
-                  ? "Sample record"
-                  : "Unreviewed record"}
+                  ? t.dialogs.aboutIntro
+                  : t.common.verified}
               </span>
               <div>
                 <button
                   className="icon-button"
-                  aria-label="Export record as JSON"
+                  aria-label={t.dialogs.exportJson}
                   onClick={exportRecord}
                 >
                   <ArrowDownToLine size={17} />
@@ -1214,11 +1325,11 @@ function WorkspaceApp() {
                   <span className="muted small">Link not checked</span>
                 </div>
                 <div className="section-head">
-                  <h3>Transcript excerpts</h3>
+                  <h3>{t.speeches.transcriptHeading}</h3>
                   <select
-                    aria-label="Transcript language"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
+                    aria-label={t.speeches.selectTranscriptLang}
+                    value={transcriptLang}
+                    onChange={(e) => setTranscriptLang(e.target.value)}
                   >
                     <option value="en">English</option>
                     <option value="si">සිංහල</option>
@@ -1230,14 +1341,80 @@ function WorkspaceApp() {
                   alignments. Links open the source recording; no simulated
                   playback.
                 </p>
+                <div className="speech-narration-bar">
+                  <div className="narration-info">
+                    <Volume2 size={16} />
+                    <span>{t.voice.generatedNarration}</span>
+                  </div>
+                  <div className="narration-actions">
+                    {tts.status === "playing" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="button small-button"
+                          onClick={tts.pause}
+                          title={t.voice.pauseReading}
+                        >
+                          <Pause size={14} /> {t.voice.pauseReading}
+                        </button>
+                        <button
+                          type="button"
+                          className="button small-button"
+                          onClick={tts.stop}
+                          title={t.voice.stopReading}
+                        >
+                          <Square size={14} /> {t.voice.stopReading}
+                        </button>
+                      </>
+                    ) : tts.status === "paused" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="button small-button primary"
+                          onClick={tts.resume}
+                          title={t.voice.resumeReading}
+                        >
+                          <Play size={14} /> {t.voice.resumeReading}
+                        </button>
+                        <button
+                          type="button"
+                          className="button small-button"
+                          onClick={tts.stop}
+                          title={t.voice.stopReading}
+                        >
+                          <Square size={14} /> {t.voice.stopReading}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button small-button"
+                        onClick={() => {
+                          const fullText = selectedSpeech.segments
+                            .map((seg) => {
+                              if (transcriptLang === "si") return seg.text_si || seg.text_en;
+                              if (transcriptLang === "ta") return seg.text_ta || seg.text_en;
+                              return seg.text_en;
+                            })
+                            .join(". ");
+                          tts.speak(fullText || selectedSpeech.summary, transcriptLang as Language);
+                        }}
+                      >
+                        <Volume2 size={14} /> {t.voice.readAloud}
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="transcript">
                   {selectedSpeech.segments.map((seg) => {
                     const translation =
-                      language === "si"
+                      transcriptLang === "si"
                         ? seg.text_si
-                        : language === "ta"
+                        : transcriptLang === "ta"
                           ? seg.text_ta
                           : seg.text_en;
+                    const segmentText = translation || seg.text_en;
+                    const isPlayingThis = tts.status === "playing" && tts.currentText === segmentText;
                     return (
                       <div className="transcript-row" key={seg.id}>
                         <SourceLink
@@ -1256,17 +1433,32 @@ function WorkspaceApp() {
                               Translation unavailable · Showing English
                             </span>
                           )}
-                          <p lang={translation ? language : "en"}>
+                          <p lang={translation ? transcriptLang : "en"}>
                             {translation || seg.text_en}
                           </p>
                           <span className="muted small">{seg.claim_type}</span>
                         </div>
+                        <button
+                          type="button"
+                          className={`speech-row-speak ${isPlayingThis ? "is-active" : ""}`}
+                          title={isPlayingThis ? t.voice.stopReading : t.voice.readAloud}
+                          aria-label={isPlayingThis ? t.voice.stopReading : t.voice.readAloud}
+                          onClick={() => {
+                            if (isPlayingThis) {
+                              tts.stop();
+                            } else {
+                              tts.speak(segmentText, (translation ? transcriptLang : "en") as Language);
+                            }
+                          }}
+                        >
+                          {isPlayingThis ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                        </button>
                       </div>
                     );
                   })}
                   {!selectedSpeech.segments.length && (
                     <Empty title="Transcript not available">
-                      No transcript segments were supplied for this speech.
+                      {t.speeches.noSpeechesDesc}
                     </Empty>
                   )}
                 </div>
@@ -1282,22 +1474,20 @@ function WorkspaceApp() {
                 </p>
                 <blockquote>{selectedCommitment.original_quote}</blockquote>
                 <div className="inline-note">
-                  Assessment: {selectedCommitment.current_status}. This label
-                  has not been independently reviewed. It is not a fact-check
-                  verdict.
+                  {t.commitments.auditVerdict}: {selectedCommitment.current_status}. {t.commitments.unreviewedAssessment}.
                 </div>
                 <p>{selectedCommitment.verdict_summary}</p>
                 <div className="target-grid">
                   <div>
-                    <span className="eyebrow">STATED TARGET</span>
+                    <span className="eyebrow">{t.commitments.targetMetric.toUpperCase()}</span>
                     <p>{selectedCommitment.target_metric}</p>
                   </div>
                   <div>
-                    <span className="eyebrow">REPORTED OUTCOME</span>
+                    <span className="eyebrow">{t.commitments.latestMetric.toUpperCase()}</span>
                     <p>{selectedCommitment.achieved_metric}</p>
                   </div>
                 </div>
-                <h3>Evidence trail</h3>
+                <h3>{t.commitments.verificationTrail}</h3>
                 <div className="event-list">
                   {selectedCommitment.timeline.map((event, i) => (
                     <article key={i}>
@@ -1354,8 +1544,7 @@ function WorkspaceApp() {
                     View supplied indicator data <ChevronDown size={16} />
                   </summary>
                   <p className="muted small">
-                    Unreviewed figures. Units, definitions, and source series
-                    must be verified before comparison.
+                    {t.timelines.verifiedCitation}
                   </p>
                   <div className="table-scroll">
                     <table>
@@ -1404,25 +1593,20 @@ function WorkspaceApp() {
         </Dialog>
       )}
       {help && (
-        <Dialog title="ABOUT THIS PILOT" onClose={() => setHelp(false)}>
+        <Dialog title={t.nav.aboutPilot.toUpperCase()} onClose={() => setHelp(false)}>
           <div className="detail-body">
             <span className="brand-mark">
               <Landmark size={24} />
             </span>
             <h2 className="detail-title">
-              Evidence first.
-              <br />
-              Conclusions with care.
+              {t.dialogs.aboutIntro}
             </h2>
-            <p>
-              Civic Trace connects parliamentary records, public commitments,
-              and policy timelines in one reading workspace.
-            </p>
-            <h3>What you’re looking at</h3>
+            <p>{t.dialogs.aboutP1}</p>
+            <h3>What you&rsquo;re looking at</h3>
             <p>
               {data?.meta.mode === "mongodb"
-                ? "Records loaded from the configured database. A database connection does not verify a claim."
-                : "Bundled sample content from the original prototype. Names, quotes, status labels, numbers, and links require independent verification before publication."}
+                ? t.dialogs.aboutP2
+                : t.dialogs.aboutP3}
             </p>
             <h3>Our evidence rules</h3>
             <ul className="method-list">

@@ -1,0 +1,248 @@
+export type Language = 'en' | 'si' | 'ta';
+
+export interface LanguageOption {
+  code: Language;
+  label: string;
+  nativeLabel: string;
+  shortLabel: string;
+}
+
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'en', label: 'English', nativeLabel: 'English', shortLabel: 'EN' },
+  { code: 'si', label: 'Sinhala', nativeLabel: 'සිංහල', shortLabel: 'සිං' },
+  { code: 'ta', label: 'Tamil', nativeLabel: 'தமிழ்', shortLabel: 'த' }
+];
+
+export interface TranslationDictionary {
+  brand: {
+    title: string;
+    subtitle: string;
+    edition: string;
+    pilot: string;
+    workspace: string;
+  };
+  nav: {
+    overview: string;
+    speeches: string;
+    commitments: string;
+    compare: string;
+    timelines: string;
+    mps: string;
+    saved: string;
+    aboutPilot: string;
+    openNav: string;
+    closeNav: string;
+    skipToContent: string;
+    lightTheme: string;
+    darkTheme: string;
+    switchToLight: string;
+    switchToDark: string;
+    selectLanguage: string;
+    searchPlaceholder: string;
+    searchBtn: string;
+    clearSearch: string;
+    howToReadEvidence: string;
+    startWithSource: string;
+    startWithSourceSub: string;
+  };
+  overview: {
+    eyebrow: string;
+    heroTitle: string;
+    heroDesc: string;
+    exploreBtn: string;
+    statSpeeches: string;
+    statMps: string;
+    statCommitments: string;
+    statTimelines: string;
+    statSpeechesSub: string;
+    statMpsSub: string;
+    statCommitmentsSub: string;
+    statTimelinesSub: string;
+    recentHeading: string;
+    recentSub: string;
+    viewAll: string;
+    featuredCommitments: string;
+    featuredCommitmentsSub: string;
+    connectedDataset: string;
+    demoWorkspace: string;
+    connectedNotice: string;
+    demoNotice: string;
+    aboutData: string;
+  };
+  speeches: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    allTopics: string;
+    sortBy: string;
+    newest: string;
+    oldest: string;
+    filterTopic: string;
+    noSpeechesFound: string;
+    noSpeechesDesc: string;
+    transcriptHeading: string;
+    selectTranscriptLang: string;
+    timedIntervals: string;
+    verifiedAudioSync: string;
+    jumpToClip: string;
+    verifySourceBtn: string;
+    listenAudioBtn: string;
+    speakerLabel: string;
+    sittingDateLabel: string;
+    volumeLabel: string;
+    claimsSummary: string;
+    referencedBills: string;
+    closeDetail: string;
+  };
+  commitments: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    allStatuses: string;
+    filterStatus: string;
+    linkedEvents: string;
+    unreviewedAssessment: string;
+    targetMetric: string;
+    latestMetric: string;
+    originalQuote: string;
+    manifestoSource: string;
+    auditVerdict: string;
+    verificationTrail: string;
+    confidence: string;
+    sponsor: string;
+    noCommitmentsFound: string;
+  };
+  compare: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    leader1: string;
+    leader2: string;
+    selectMp: string;
+    stanceMatrix: string;
+    attendance: string;
+    speechesCount: string;
+    votingCount: string;
+    partyLabel: string;
+    districtLabel: string;
+    noStance: string;
+    selectPrompt: string;
+  };
+  timelines: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    macroIndicator: string;
+    timespan: string;
+    eventsPipeline: string;
+    inflationChart: string;
+    revenueChart: string;
+    inquiriesChart: string;
+    prosecutionsChart: string;
+    verifiedCitation: string;
+  };
+  mps: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    viewProfile: string;
+    attendanceRate: string;
+    totalSpeeches: string;
+    loyaltyIndex: string;
+    policyFocus: string;
+    district: string;
+    party: string;
+    role: string;
+    noMpsFound: string;
+    profileBack: string;
+    activitySummary: string;
+    tabAttendance: string;
+    tabSpeeches: string;
+    tabStances: string;
+    sessionFilter: string;
+    allSessions: string;
+    searchInProfile: string;
+    present: string;
+    absent: string;
+    missingData: string;
+    sittingsAttended: string;
+    eligibleSittings: string;
+    denominatorNote: string;
+    missingDataNote: string;
+    noSpeechesInSession: string;
+    loadMore: string;
+    exportRecord: string;
+  };
+  saved: {
+    eyebrow: string;
+    title: string;
+    desc: string;
+    noSavedTitle: string;
+    noSavedDesc: string;
+    savedToastAdded: string;
+    savedToastRemoved: string;
+    storageUnavailable: string;
+    saveBtn: string;
+    unsaveBtn: string;
+  };
+  dialogs: {
+    close: string;
+    aboutTitle: string;
+    aboutIntro: string;
+    aboutP1: string;
+    aboutP2: string;
+    aboutP3: string;
+    closeDialog: string;
+    exportJson: string;
+  };
+  status: {
+    kept: string;
+    inProgress: string;
+    compromised: string;
+    broken: string;
+    underReview: string;
+    present: string;
+    absent: string;
+    missingData: string;
+  };
+  common: {
+    records: string;
+    sourceLink: string;
+    sourceNotSupplied: string;
+    verified: string;
+    loading: string;
+    retry: string;
+    errorTitle: string;
+    errorDesc: string;
+    reloadApp: string;
+    exploreSample: string;
+  };
+  voice: {
+    micBtn: string;
+    micRecording: string;
+    micStop: string;
+    micCancel: string;
+    micRetry: string;
+    transcribing: string;
+    noSpeechDetected: string;
+    micDenied: string;
+    micUnavailable: string;
+    unsupportedBrowser: string;
+    unsupportedLanguage: string;
+    serviceUnavailable: string;
+    networkError: string;
+    recordingTooLong: string;
+    useFallback: string;
+    readAloud: string;
+    stopReading: string;
+    pauseReading: string;
+    resumeReading: string;
+    replayReading: string;
+    generatedNarration: string;
+    voiceUnavailable: string;
+    readyToSubmit: string;
+    searching: string;
+    editQuery: string;
+    externalServiceNotice: string;
+  };
+}
