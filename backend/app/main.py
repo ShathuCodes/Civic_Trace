@@ -4,10 +4,35 @@ import re
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, date as date_type
+from pathlib import Path
 from typing import Literal, Optional
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+def _load_env_file():
+    """Load key-value pairs from backend/.env if present without overwriting shell env."""
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    if not env_path.is_file():
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key, val = key.strip(), val.strip()
+                # Strip potential surrounding quotes
+                if len(val) >= 2 and ((val[0] == '"' and val[-1] == '"') or (val[0] == "'" and val[-1] == "'")):
+                    val = val[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except Exception as exc:
+        logging.warning("Could not read local .env file: %s", exc)
+
+_load_env_file()
+
 from .data import (MP, Party, Speech, Commitment, IssueTimeline, SAMPLE_MPS,
                    SAMPLE_PARTIES, SAMPLE_SPEECHES, SAMPLE_COMMITMENTS, SAMPLE_TIMELINES)
 from .activity import (AttendanceRecord, MPMembership, SittingDay,

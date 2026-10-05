@@ -63,7 +63,7 @@ Out of scope for this SRS revision: production multi-tenant auth, write APIs for
 |----|-------------|--------|
 | FR-SP-01 | List/filter speeches; open detail with EN/SI/TA transcript toggle | Implemented (demo) |
 | FR-SP-02 | Each speech SHALL carry Hansard volume/page/URL when available | Schema ready; live ingest missing |
-| FR-SP-03 | System SHALL ingest Hansard from official sources on a schedule | Missing |
+| FR-SP-03 | System SHALL ingest Hansard from official sources on a schedule | Ingestion parser & MP resolver implemented (`app.ingest`) |
 | FR-SP-04 | Unsafe URL schemes MUST be rejected for source links | Planned |
 
 ### 3.4 Commitments (promises)
@@ -73,8 +73,8 @@ Out of scope for this SRS revision: production multi-tenant auth, write APIs for
 | FR-CM-01 | List/filter commitments by status and sponsor | Implemented (demo) |
 | FR-CM-02 | Status values: Kept, In Progress, Compromised, Broken, Under Review; Insufficient Evidence planned | Partial |
 | FR-CM-03 | Status changes REQUIRE human review with criteria and evidence links | Missing |
-| FR-CM-04 | Missing evidence MUST NOT auto-map to Broken | Product rule (enforce in pipeline) |
-| FR-CM-05 | Extract promises from manifesto/Hansard text (assisted) | Missing |
+| FR-CM-04 | Missing evidence MUST NOT auto-map to Broken | Product rule (enforced in `PromiseMatcher`) |
+| FR-CM-05 | Extract promises from manifesto/Hansard text (assisted) | Implemented (`PromiseMatcher` + `DataNormalizer`) |
 
 ### 3.5 News & outcomes
 

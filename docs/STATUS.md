@@ -24,9 +24,9 @@ Analyse whether Sri Lankan MPs:
 | Backend read API + models | ~60% | Demo + Mongo snapshot adapter |
 | MP activity (attendance methodology) | ~40% | Demo collections + profile UI |
 | MongoDB real integration | ~15% | Code exists; real DB untested |
-| Hansard ingestion | ~0–5% | Fields in schema only |
-| News ingestion | ~0% | — |
-| Promise extraction / linking | ~0% | Seed commitments are hand-authored |
+| Hansard ingestion | ~30% | `HansardParser` + `MPResolver` built; schedule fetcher planned |
+| News ingestion | ~10% | Schema & normalizer ready; scraper connectors next |
+| Promise extraction / linking | ~35% | `PromiseMatcher` evidence linker + timeline generator built |
 | Human review workflow | ~0% | — |
 | Cited RAG / measured AI | ~0% | Keyword `/api/chat` only |
 | Production ops (Docker, CI, auth) | ~5% | Local scripts + unittest/smoke |
