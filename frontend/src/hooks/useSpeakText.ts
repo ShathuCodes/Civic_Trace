@@ -54,6 +54,9 @@ export function useSpeakText({ onEnd, onError }: UseSpeakTextOptions = {}) {
     }
   }, []);
 
+  const lastTextRef = useRef<string>('');
+  const lastLangRef = useRef<Language>('en');
+
   const speak = useCallback(
     (text: string, lang: Language = 'en') => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -68,6 +71,9 @@ export function useSpeakText({ onEnd, onError }: UseSpeakTextOptions = {}) {
         setStatus('idle');
         return;
       }
+
+      lastTextRef.current = text;
+      lastLangRef.current = lang;
 
       const utterance = new SpeechSynthesisUtterance(text);
       utteranceRef.current = utterance;
@@ -108,6 +114,12 @@ export function useSpeakText({ onEnd, onError }: UseSpeakTextOptions = {}) {
     [onEnd, onError]
   );
 
+  const replay = useCallback(() => {
+    if (lastTextRef.current) {
+      speak(lastTextRef.current, lastLangRef.current);
+    }
+  }, [speak]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -125,5 +137,7 @@ export function useSpeakText({ onEnd, onError }: UseSpeakTextOptions = {}) {
     stop,
     pause,
     resume,
+    replay,
   };
 }
+

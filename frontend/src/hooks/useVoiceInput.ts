@@ -70,6 +70,7 @@ export function useVoiceInput({
   const stop = useCallback(() => {
     if (recognitionRef.current) {
       try {
+        setStatus('transcribing');
         recognitionRef.current.stop();
       } catch (e) {
         cleanup();
