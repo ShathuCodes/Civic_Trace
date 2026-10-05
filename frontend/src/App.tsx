@@ -320,6 +320,7 @@ function WorkspaceApp() {
   const [compare, setCompare] = useState<string[]>([]);
   // transcript language (separate from UI language)
   const [transcriptLang, setTranscriptLang] = useState("en");
+  const [showHansardPreview, setShowHansardPreview] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const voice = useVoiceInput({
     language,
@@ -328,7 +329,11 @@ function WorkspaceApp() {
       searchRef.current?.focus();
     },
   });
-  const tts = useSpeakText();
+  const tts = useSpeakText({
+    onError: () => {
+      setToast(t.voice.voiceUnavailable);
+    },
+  });
   useEffect(() => {
     const change = () => {
       const r = readRoute();
@@ -1312,18 +1317,62 @@ function WorkspaceApp() {
                 <p className="lead">{selectedSpeech.summary}</p>
                 <div className="source-box">
                   <FileText size={21} />
-                  <div>
-                    <strong>Original parliamentary record</strong>
+                  <div style={{ flex: 1 }}>
+                    <strong>Original parliamentary record (Hansard)</strong>
                     <p>
-                      {selectedSpeech.hansard_vol} · Pages{" "}
-                      {selectedSpeech.hansard_page}
+                      {selectedSpeech.hansard_vol} · Pages {selectedSpeech.hansard_page}
                     </p>
-                    <SourceLink url={selectedSpeech.hansard_pdf_url}>
-                      Open Hansard
-                    </SourceLink>
+                    <div className="source-box-actions">
+                      <SourceLink url={selectedSpeech.hansard_pdf_url}>
+                        Open Official Hansard Link
+                      </SourceLink>
+                      <button
+                        type="button"
+                        className="button small-button hansard-preview-btn"
+                        onClick={() => setShowHansardPreview(!showHansardPreview)}
+                      >
+                        {showHansardPreview ? "Hide Document Preview" : "Preview Hansard Document"}
+                      </button>
+                    </div>
                   </div>
-                  <span className="muted small">Link not checked</span>
+                  <span className="muted small">Official Hansard Archive</span>
                 </div>
+
+                {showHansardPreview && (
+                  <div className="hansard-document-preview">
+                    <div className="hansard-doc-head">
+                      <div>
+                        <span className="hansard-seal">PARLIAMENT OF SRI LANKA</span>
+                        <h3>OFFICIAL REPORT (HANSARD)</h3>
+                        <p className="hansard-doc-meta">
+                          <strong>{selectedSpeech.hansard_vol}</strong> · Sitting Date: <strong>{date(selectedSpeech.sitting_date)}</strong> · Pages: <strong>{selectedSpeech.hansard_page}</strong>
+                        </p>
+                      </div>
+                      <span className="hansard-badge">Official Record</span>
+                    </div>
+                    <div className="hansard-doc-body">
+                      <div className="hansard-speaker-tag">
+                        <strong>SPEAKER:</strong> {selectedSpeech.speaker_name} ({selectedSpeech.session_name})
+                      </div>
+                      <div className="hansard-subject-tag">
+                        <strong>TOPIC:</strong> {selectedSpeech.topic} — {selectedSpeech.title}
+                      </div>
+                      <div className="hansard-text-block">
+                        <p className="hansard-quote">
+                          {transcriptLang === "si" && selectedSpeech.segments.some((s) => s.text_si)
+                            ? selectedSpeech.segments.map((s) => s.text_si || s.text_en).join(" ")
+                            : transcriptLang === "ta" && selectedSpeech.segments.some((s) => s.text_ta)
+                              ? selectedSpeech.segments.map((s) => s.text_ta || s.text_en).join(" ")
+                              : selectedSpeech.segments.map((s) => s.text_en).join(" ") || selectedSpeech.summary}
+                        </p>
+                      </div>
+                      <div className="hansard-footer-note">
+                        <span>Official Archive Citation: <code>{selectedSpeech.hansard_vol.replace(/\s+/g, '_')}_p{selectedSpeech.hansard_page}</code></span>
+                        <span className="muted">Note: Direct parliamentary PDF downloads depend on external parliament.lk server availability.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="section-head">
                   <h3>{t.speeches.transcriptHeading}</h3>
                   <select

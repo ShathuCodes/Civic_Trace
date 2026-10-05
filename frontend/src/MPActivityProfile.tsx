@@ -491,8 +491,8 @@ function SpeechRow({
           <span>{speech.topic}</span>
           <span>{fmtDate(speech.sitting_date)}</span>
           {speech.has_audio && (
-            <span className="ap-audio-pill" title="Synchronized voice recording available">
-              <Volume2 size={11} /> Voice synced
+            <span className="ap-audio-pill" title="Audio recording available (timestamps are supplied records, unverified alignment)">
+              <Volume2 size={11} /> Audio available
             </span>
           )}
         </span>
