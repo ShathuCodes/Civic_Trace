@@ -39,7 +39,7 @@ class Speech(BaseModel):
     key_claims: List[str]
     segments: List[TimestampSegment]
     votes_referenced: List[str]
-    verified_accuracy: float # e.g. 96.5%
+    verified_accuracy: Optional[float] = None # e.g. 96.5%
 
 class MP(BaseModel):
     id: str
@@ -50,11 +50,11 @@ class MP(BaseModel):
     party_code: str
     district: str
     current_role: str
-    avatar_url: str
-    attendance_rate: float
-    total_speeches: int
-    votes_attended: int
-    loyalty_index: float # alignment with party line
+    avatar_url: str = ""
+    attendance_rate: Optional[float] = None
+    total_speeches: Optional[int] = None
+    votes_attended: Optional[int] = None
+    loyalty_index: Optional[float] = None # alignment with party line
     policy_focus: List[str]
     bio: str
     stances: Dict[str, str] # e.g. {"Taxation": "Progressive Direct Tax", "IMF Agreement": "Renegotiate Social Safety Net"}
@@ -83,7 +83,7 @@ class Commitment(BaseModel):
     current_status: str # "Kept", "In Progress", "Compromised", "Broken", "Under Review"
     target_metric: str
     achieved_metric: str
-    confidence_score: float
+    confidence_score: Optional[float] = None
     verdict_summary: str
     timeline: List[CommitmentTimelineEvent]
 

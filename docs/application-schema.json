@@ -1,0 +1,610 @@
+{
+  "mps": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "sinhala_name": {
+        "title": "Sinhala Name",
+        "type": "string"
+      },
+      "tamil_name": {
+        "title": "Tamil Name",
+        "type": "string"
+      },
+      "party": {
+        "title": "Party",
+        "type": "string"
+      },
+      "party_code": {
+        "title": "Party Code",
+        "type": "string"
+      },
+      "district": {
+        "title": "District",
+        "type": "string"
+      },
+      "current_role": {
+        "title": "Current Role",
+        "type": "string"
+      },
+      "avatar_url": {
+        "default": "",
+        "title": "Avatar Url",
+        "type": "string"
+      },
+      "attendance_rate": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Attendance Rate"
+      },
+      "total_speeches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Total Speeches"
+      },
+      "votes_attended": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Votes Attended"
+      },
+      "loyalty_index": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Loyalty Index"
+      },
+      "policy_focus": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Policy Focus",
+        "type": "array"
+      },
+      "bio": {
+        "title": "Bio",
+        "type": "string"
+      },
+      "stances": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Stances",
+        "type": "object"
+      },
+      "commitments_count": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Commitments Count",
+        "type": "object"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "sinhala_name",
+      "tamil_name",
+      "party",
+      "party_code",
+      "district",
+      "current_role",
+      "policy_focus",
+      "bio",
+      "stances",
+      "commitments_count"
+    ],
+    "title": "MP",
+    "type": "object"
+  },
+  "parties": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "code": {
+        "title": "Code",
+        "type": "string"
+      },
+      "leader": {
+        "title": "Leader",
+        "type": "string"
+      },
+      "parliamentary_seats": {
+        "title": "Parliamentary Seats",
+        "type": "integer"
+      },
+      "core_ideology": {
+        "title": "Core Ideology",
+        "type": "string"
+      },
+      "color": {
+        "title": "Color",
+        "type": "string"
+      },
+      "manifesto_name": {
+        "title": "Manifesto Name",
+        "type": "string"
+      },
+      "manifesto_summary": {
+        "title": "Manifesto Summary",
+        "type": "string"
+      },
+      "key_pillars": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Key Pillars",
+        "type": "array"
+      },
+      "alignment_scores": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "title": "Alignment Scores",
+        "type": "object"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "code",
+      "leader",
+      "parliamentary_seats",
+      "core_ideology",
+      "color",
+      "manifesto_name",
+      "manifesto_summary",
+      "key_pillars",
+      "alignment_scores"
+    ],
+    "title": "Party",
+    "type": "object"
+  },
+  "speeches": {
+    "$defs": {
+      "TimestampSegment": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "start_time": {
+            "title": "Start Time",
+            "type": "string"
+          },
+          "start_seconds": {
+            "title": "Start Seconds",
+            "type": "integer"
+          },
+          "end_time": {
+            "title": "End Time",
+            "type": "string"
+          },
+          "end_seconds": {
+            "title": "End Seconds",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "text_en": {
+            "title": "Text En",
+            "type": "string"
+          },
+          "text_si": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text Si"
+          },
+          "text_ta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text Ta"
+          },
+          "claim_type": {
+            "title": "Claim Type",
+            "type": "string"
+          },
+          "fact_check_status": {
+            "title": "Fact Check Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "start_time",
+          "start_seconds",
+          "end_time",
+          "end_seconds",
+          "speaker",
+          "text_en",
+          "claim_type",
+          "fact_check_status"
+        ],
+        "title": "TimestampSegment",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "speaker_id": {
+        "title": "Speaker Id",
+        "type": "string"
+      },
+      "speaker_name": {
+        "title": "Speaker Name",
+        "type": "string"
+      },
+      "speaker_role": {
+        "title": "Speaker Role",
+        "type": "string"
+      },
+      "party": {
+        "title": "Party",
+        "type": "string"
+      },
+      "sitting_date": {
+        "title": "Sitting Date",
+        "type": "string"
+      },
+      "session_name": {
+        "title": "Session Name",
+        "type": "string"
+      },
+      "hansard_vol": {
+        "title": "Hansard Vol",
+        "type": "string"
+      },
+      "hansard_page": {
+        "title": "Hansard Page",
+        "type": "string"
+      },
+      "hansard_pdf_url": {
+        "title": "Hansard Pdf Url",
+        "type": "string"
+      },
+      "video_url": {
+        "title": "Video Url",
+        "type": "string"
+      },
+      "duration": {
+        "title": "Duration",
+        "type": "string"
+      },
+      "duration_seconds": {
+        "title": "Duration Seconds",
+        "type": "integer"
+      },
+      "topic": {
+        "title": "Topic",
+        "type": "string"
+      },
+      "summary": {
+        "title": "Summary",
+        "type": "string"
+      },
+      "key_claims": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Key Claims",
+        "type": "array"
+      },
+      "segments": {
+        "items": {
+          "$ref": "#/$defs/TimestampSegment"
+        },
+        "title": "Segments",
+        "type": "array"
+      },
+      "votes_referenced": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Votes Referenced",
+        "type": "array"
+      },
+      "verified_accuracy": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Verified Accuracy"
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "speaker_id",
+      "speaker_name",
+      "speaker_role",
+      "party",
+      "sitting_date",
+      "session_name",
+      "hansard_vol",
+      "hansard_page",
+      "hansard_pdf_url",
+      "video_url",
+      "duration",
+      "duration_seconds",
+      "topic",
+      "summary",
+      "key_claims",
+      "segments",
+      "votes_referenced"
+    ],
+    "title": "Speech",
+    "type": "object"
+  },
+  "commitments": {
+    "$defs": {
+      "CommitmentTimelineEvent": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "status_impact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "Positive",
+            "title": "Status Impact"
+          }
+        },
+        "required": [
+          "date",
+          "stage",
+          "title",
+          "description",
+          "source_type",
+          "source_ref",
+          "source_url"
+        ],
+        "title": "CommitmentTimelineEvent",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "category": {
+        "title": "Category",
+        "type": "string"
+      },
+      "party": {
+        "title": "Party",
+        "type": "string"
+      },
+      "sponsor_mp_id": {
+        "title": "Sponsor Mp Id",
+        "type": "string"
+      },
+      "sponsor_name": {
+        "title": "Sponsor Name",
+        "type": "string"
+      },
+      "manifesto_source": {
+        "title": "Manifesto Source",
+        "type": "string"
+      },
+      "manifesto_year": {
+        "title": "Manifesto Year",
+        "type": "integer"
+      },
+      "original_quote": {
+        "title": "Original Quote",
+        "type": "string"
+      },
+      "current_status": {
+        "title": "Current Status",
+        "type": "string"
+      },
+      "target_metric": {
+        "title": "Target Metric",
+        "type": "string"
+      },
+      "achieved_metric": {
+        "title": "Achieved Metric",
+        "type": "string"
+      },
+      "confidence_score": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Confidence Score"
+      },
+      "verdict_summary": {
+        "title": "Verdict Summary",
+        "type": "string"
+      },
+      "timeline": {
+        "items": {
+          "$ref": "#/$defs/CommitmentTimelineEvent"
+        },
+        "title": "Timeline",
+        "type": "array"
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "category",
+      "party",
+      "sponsor_mp_id",
+      "sponsor_name",
+      "manifesto_source",
+      "manifesto_year",
+      "original_quote",
+      "current_status",
+      "target_metric",
+      "achieved_metric",
+      "verdict_summary",
+      "timeline"
+    ],
+    "title": "Commitment",
+    "type": "object"
+  },
+  "timelines": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "topic": {
+        "title": "Topic",
+        "type": "string"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "description": {
+        "title": "Description",
+        "type": "string"
+      },
+      "time_span": {
+        "title": "Time Span",
+        "type": "string"
+      },
+      "indicator_label": {
+        "title": "Indicator Label",
+        "type": "string"
+      },
+      "indicator_data": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Indicator Data",
+        "type": "array"
+      },
+      "events": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Events",
+        "type": "array"
+      }
+    },
+    "required": [
+      "id",
+      "topic",
+      "title",
+      "description",
+      "time_span",
+      "indicator_label",
+      "indicator_data",
+      "events"
+    ],
+    "title": "IssueTimeline",
+    "type": "object"
+  }
+}
