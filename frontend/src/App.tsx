@@ -39,6 +39,7 @@ import type { Language } from "./i18n/types";
 import { SUPPORTED_LANGUAGES } from "./i18n/types";
 import { useVoiceInput } from "./hooks/useVoiceInput";
 import { useSpeakText } from "./hooks/useSpeakText";
+import { EvidenceTrailView } from "./EvidenceTrailView";
 
 const STANDALONE_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
@@ -49,9 +50,16 @@ type Page =
   | "compare"
   | "timelines"
   | "mps"
-  | "saved";
+  | "saved"
+  | "trail";
 type RecordKind = "speech" | "commitment" | "mp" | "timeline";
 type Selection = { kind: RecordKind; id: string };
+type TrailRoute = {
+  id: string;
+  kind: "speech" | "commitment";
+  fromPage: Page;
+  fromId: string;
+};
 const PAGE_IDS: Page[] = ["overview", "speeches", "commitments", "compare", "timelines", "mps", "saved"];
 const PAGE_ICONS: Record<Page, typeof Search> = {
   overview: LayoutDashboard,
@@ -61,18 +69,50 @@ const PAGE_ICONS: Record<Page, typeof Search> = {
   timelines: Clock3,
   mps: Users,
   saved: Bookmark,
+  trail: Clock3,
 };
-function readRoute() {
+function readRoute(): {
+  page: Page;
+  query: string;
+  selection: Selection | null;
+  trail: TrailRoute | null;
+} {
   const params = new URLSearchParams(location.hash.slice(1));
-  const page = params.get("page") as Page;
+  const pageParam = params.get("page");
+  const isTrail = pageParam === "trail";
+  const page = isTrail
+    ? ("trail" as Page)
+    : PAGE_IDS.includes(pageParam as Page)
+      ? (pageParam as Page)
+      : ("overview" as Page);
   const kind = params.get("kind") as RecordKind;
+  const trailId =
+    params.get("trail_id") || (isTrail ? params.get("id") : "") || "";
+  const trailKind =
+    ((params.get("trail_kind") || (isTrail ? params.get("kind") : "")) as
+      | "speech"
+      | "commitment") || "speech";
+  const fromPageParam = params.get("from_page") as Page;
+  const fromPage =
+    fromPageParam && PAGE_IDS.includes(fromPageParam)
+      ? fromPageParam
+      : trailKind === "commitment"
+        ? "commitments"
+        : "speeches";
+  const fromId = params.get("from_id") || trailId;
+
   return {
-    page: PAGE_IDS.includes(page) ? page : ("overview" as Page),
+    page,
     query: params.get("q") || "",
     selection:
+      !isTrail &&
       ["speech", "commitment", "mp", "timeline"].includes(kind) &&
       params.get("id")
         ? { kind, id: params.get("id")! }
+        : null,
+    trail:
+      isTrail && trailId
+        ? { id: trailId, kind: trailKind, fromPage, fromId }
         : null,
   };
 }
@@ -396,17 +436,48 @@ function WorkspaceApp() {
     };
   }, [attempt]);
   const page = route.page;
-  function navigate(next: Page, selection: Selection | null = null, q = "") {
+  function navigate(
+    next: Page,
+    selection: Selection | null = null,
+    q = "",
+    trailParams?: { id: string; kind: "speech" | "commitment"; fromPage?: string; fromId?: string } | null,
+  ) {
     const params = new URLSearchParams({ page: next });
     if (q) params.set("q", q);
     if (selection) {
       params.set("kind", selection.kind);
       params.set("id", selection.id);
     }
+    const t = trailParams || (next === "trail" ? route.trail : null);
+    if (t) {
+      params.set("trail_id", t.id);
+      params.set("trail_kind", t.kind);
+      if (t.fromPage) params.set("from_page", t.fromPage);
+      if (t.fromId) params.set("from_id", t.fromId);
+    }
     window.location.assign("#" + params.toString());
   }
   function open(kind: RecordKind, id: string) {
     navigate(page, { kind, id }, query);
+  }
+  function openEvidenceTrail(recordId: string, recordKind: "speech" | "commitment") {
+    const fromPage = route.page === "trail" ? (route.trail?.fromPage || "speeches") : route.page;
+    navigate("trail", null, query, {
+      id: recordId,
+      kind: recordKind,
+      fromPage,
+      fromId: recordId,
+    });
+  }
+  function returnFromTrail() {
+    const fromPage = route.trail?.fromPage || (route.trail?.kind === "commitment" ? "commitments" : "speeches");
+    const fromId = route.trail?.fromId;
+    const fromKind = route.trail?.kind;
+    if (fromId && fromKind) {
+      navigate(fromPage, { kind: fromKind, id: fromId }, query);
+    } else {
+      navigate(fromPage, null, query);
+    }
   }
   function toggleSave(kind: RecordKind, id: string) {
     const key = `${kind}:${id}`;
@@ -495,7 +566,11 @@ function WorkspaceApp() {
   const comparisonTopics = Array.from(
     new Set(selectedLeaders.flatMap((m) => Object.keys(m.stances))),
   );
-  const current = pages.find((p) => p.id === page)!;
+  const current = pages.find((p) => p.id === page) || {
+    id: "trail" as Page,
+    title: t.trail.whatHappenedAfter,
+    icon: Clock3,
+  };
   function exportRecord() {
     const record =
       selectedSpeech || selectedCommitment || selectedMP || selectedTimeline;
@@ -539,6 +614,17 @@ function WorkspaceApp() {
             {speech.duration}
           </span>
         </button>
+        <button
+          className="icon-button what-happened-after-icon-btn"
+          title={t.trail.whatHappenedAfter}
+          aria-label={t.trail.whatHappenedAfter}
+          onClick={(e) => {
+            e.stopPropagation();
+            openEvidenceTrail(speech.id, "speech");
+          }}
+        >
+          <Clock3 size={16} />
+        </button>
         {bookmark("speech", speech.id)}
         <ChevronRight size={16} className="row-chevron" />
       </div>
@@ -567,9 +653,22 @@ function WorkspaceApp() {
           <span className="muted small">Unreviewed assessment</span>
         </div>
         <div className="card-divider" />
-        <button className="text-link" onClick={() => open("commitment", c.id)}>
-          {c.timeline.length} linked events <ArrowRight size={15} />
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <button className="text-link" onClick={() => open("commitment", c.id)}>
+            {c.timeline.length} linked events <ArrowRight size={15} />
+          </button>
+          <span className="dot">·</span>
+          <button
+            className="text-link"
+            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openEvidenceTrail(c.id, "commitment");
+            }}
+          >
+            <Clock3 size={14} /> {t.trail.whatHappenedAfter}
+          </button>
+        </div>
       </article>
     );
   }
@@ -734,146 +833,150 @@ function WorkspaceApp() {
               {t.overview.aboutData} <ArrowUpRight size={13} />
             </button>
           </div>
-          <section className="page-heading">
-            <div>
-              <span className="eyebrow">
-                {page === "overview" ? t.overview.eyebrow : t.speeches.eyebrow}{" "}
-              </span>
-              <h1>
-                {page === "overview" ? t.overview.heroTitle : current.title}
-              </h1>
-              <p>
-                {{
-                  overview: t.overview.heroDesc,
-                  speeches: t.speeches.desc,
-                  commitments: t.commitments.desc,
-                  compare: t.compare.desc,
-                  timelines: t.timelines.desc,
-                  mps: t.mps.desc,
-                  saved: t.saved.desc,
-                }[page]}
-              </p>
-            </div>
-            {page === "overview" && (
-              <button
-                className="button primary"
-                onClick={() => navigate("speeches")}
-              >
-                {t.overview.exploreBtn} <ArrowRight size={16} />
-              </button>
-            )}
-          </section>
-          <div className="search-section">
-            <form
-              className="search-bar"
-              onSubmit={(e) => {
-                e.preventDefault();
-                voice.stop();
-                navigate(page === "overview" ? "speeches" : page, null, query);
-              }}
-            >
-              <Search size={20} />
-              <input
-                ref={searchRef}
-                aria-label={t.nav.searchPlaceholder}
-                placeholder={
-                  voice.status === "listening"
-                    ? `${t.voice.micRecording} (${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})`
-                    : t.nav.searchPlaceholder
-                }
-                value={voice.status === "listening" ? (voice.interimTranscript || query) : query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {voice.isSupported && (
-                <button
-                  type="button"
-                  className={`icon-button voice-btn ${voice.status === "listening" ? "is-recording" : ""}`}
-                  aria-label={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
-                  title={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
-                  onClick={() => {
-                    if (voice.status === "listening") {
-                      voice.stop();
-                    } else {
-                      voice.start();
-                    }
-                  }}
-                >
-                  {voice.status === "listening" ? <MicOff size={18} /> : <Mic size={18} />}
-                </button>
-              )}
-              {query ? (
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={t.nav.clearSearch}
-                  onClick={() => {
-                    setQuery("");
-                    voice.reset();
-                    navigate(page);
-                  }}
-                >
-                  <X size={17} />
-                </button>
-              ) : (
-                <kbd>Ctrl K</kbd>
-              )}
-              <button className="search-submit" type="submit">
-                {t.nav.searchBtn} <ArrowRight size={15} />
-              </button>
-            </form>
-
-            {voice.status === "listening" && (
-              <div className="voice-status listening">
-                <span className="pulse-dot" />
-                <span>{t.voice.micRecording} ({SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})</span>
-                <button type="button" className="text-link small" onClick={voice.stop}>
-                  {t.voice.micStop}
-                </button>
-                <button type="button" className="text-link small muted" onClick={voice.cancel}>
-                  {t.voice.micCancel}
-                </button>
-              </div>
-            )}
-            {voice.status === "ready" && voice.transcript && (
-              <div className="voice-status ready">
-                <span>{t.voice.readyToSubmit}</span>
-                <button
-                  type="button"
-                  className="button small-button primary"
-                  onClick={() => {
-                    voice.reset();
+          {page !== "trail" && (
+            <>
+              <section className="page-heading">
+                <div>
+                  <span className="eyebrow">
+                    {page === "overview" ? t.overview.eyebrow : t.speeches.eyebrow}{" "}
+                  </span>
+                  <h1>
+                    {page === "overview" ? t.overview.heroTitle : current.title}
+                  </h1>
+                  <p>
+                    {{
+                      overview: t.overview.heroDesc,
+                      speeches: t.speeches.desc,
+                      commitments: t.commitments.desc,
+                      compare: t.compare.desc,
+                      timelines: t.timelines.desc,
+                      mps: t.mps.desc,
+                      saved: t.saved.desc,
+                    }[page]}
+                  </p>
+                </div>
+                {page === "overview" && (
+                  <button
+                    className="button primary"
+                    onClick={() => navigate("speeches")}
+                  >
+                    {t.overview.exploreBtn} <ArrowRight size={16} />
+                  </button>
+                )}
+              </section>
+              <div className="search-section">
+                <form
+                  className="search-bar"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    voice.stop();
                     navigate(page === "overview" ? "speeches" : page, null, query);
                   }}
                 >
-                  {t.nav.searchBtn} <ArrowRight size={14} />
-                </button>
-                <button type="button" className="text-link small muted" onClick={voice.reset}>
-                  {t.voice.micCancel}
-                </button>
+                  <Search size={20} />
+                  <input
+                    ref={searchRef}
+                    aria-label={t.nav.searchPlaceholder}
+                    placeholder={
+                      voice.status === "listening"
+                        ? `${t.voice.micRecording} (${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})`
+                        : t.nav.searchPlaceholder
+                    }
+                    value={voice.status === "listening" ? (voice.interimTranscript || query) : query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  {voice.isSupported && (
+                    <button
+                      type="button"
+                      className={`icon-button voice-btn ${voice.status === "listening" ? "is-recording" : ""}`}
+                      aria-label={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
+                      title={voice.status === "listening" ? t.voice.micStop : t.voice.micBtn}
+                      onClick={() => {
+                        if (voice.status === "listening") {
+                          voice.stop();
+                        } else {
+                          voice.start();
+                        }
+                      }}
+                    >
+                      {voice.status === "listening" ? <MicOff size={18} /> : <Mic size={18} />}
+                    </button>
+                  )}
+                  {query ? (
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={t.nav.clearSearch}
+                      onClick={() => {
+                        setQuery("");
+                        voice.reset();
+                        navigate(page);
+                      }}
+                    >
+                      <X size={17} />
+                    </button>
+                  ) : (
+                    <kbd>Ctrl K</kbd>
+                  )}
+                  <button className="search-submit" type="submit">
+                    {t.nav.searchBtn} <ArrowRight size={15} />
+                  </button>
+                </form>
+
+                {voice.status === "listening" && (
+                  <div className="voice-status listening">
+                    <span className="pulse-dot" />
+                    <span>{t.voice.micRecording} ({SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeLabel})</span>
+                    <button type="button" className="text-link small" onClick={voice.stop}>
+                      {t.voice.micStop}
+                    </button>
+                    <button type="button" className="text-link small muted" onClick={voice.cancel}>
+                      {t.voice.micCancel}
+                    </button>
+                  </div>
+                )}
+                {voice.status === "ready" && voice.transcript && (
+                  <div className="voice-status ready">
+                    <span>{t.voice.readyToSubmit}</span>
+                    <button
+                      type="button"
+                      className="button small-button primary"
+                      onClick={() => {
+                        voice.reset();
+                        navigate(page === "overview" ? "speeches" : page, null, query);
+                      }}
+                    >
+                      {t.nav.searchBtn} <ArrowRight size={14} />
+                    </button>
+                    <button type="button" className="text-link small muted" onClick={voice.reset}>
+                      {t.voice.micCancel}
+                    </button>
+                  </div>
+                )}
+                {voice.status === "error" && voice.error && (
+                  <div className="voice-status error">
+                    <span>
+                      {voice.error.type === "permission_denied"
+                        ? t.voice.micDenied
+                        : voice.error.type === "no_speech"
+                          ? t.voice.noSpeechDetected
+                          : voice.error.type === "unsupported"
+                            ? t.voice.unsupportedBrowser
+                            : voice.error.type === "network"
+                              ? t.voice.networkError
+                              : t.voice.serviceUnavailable}
+                    </span>
+                    <button type="button" className="text-link small" onClick={voice.start}>
+                      {t.voice.micRetry}
+                    </button>
+                    <button type="button" className="text-link small muted" onClick={voice.reset}>
+                      {t.voice.useFallback}
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-            {voice.status === "error" && voice.error && (
-              <div className="voice-status error">
-                <span>
-                  {voice.error.type === "permission_denied"
-                    ? t.voice.micDenied
-                    : voice.error.type === "no_speech"
-                      ? t.voice.noSpeechDetected
-                      : voice.error.type === "unsupported"
-                        ? t.voice.unsupportedBrowser
-                        : voice.error.type === "network"
-                          ? t.voice.networkError
-                          : t.voice.serviceUnavailable}
-                </span>
-                <button type="button" className="text-link small" onClick={voice.start}>
-                  {t.voice.micRetry}
-                </button>
-                <button type="button" className="text-link small muted" onClick={voice.reset}>
-                  {t.voice.useFallback}
-                </button>
-              </div>
-            )}
-          </div>
+            </>
+          )}
           {loading ? (
             <div
               className="skeleton-grid"
@@ -1250,6 +1353,15 @@ function WorkspaceApp() {
                     )}
                   </>
                 )}
+                {page === "trail" && route.trail && (
+                  <EvidenceTrailView
+                    recordId={route.trail.id}
+                    recordKind={route.trail.kind}
+                    onBack={returnFromTrail}
+                    onOpenSpeech={(speechId) => open("speech", speechId)}
+                    onOpenCommitment={(commitmentId) => open("commitment", commitmentId)}
+                  />
+                )}
               </div>
             )
           )}
@@ -1273,7 +1385,20 @@ function WorkspaceApp() {
                   ? t.dialogs.aboutIntro
                   : t.common.verified}
               </span>
-              <div>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                {(selectedSpeech || selectedCommitment) && (
+                  <button
+                    type="button"
+                    className="what-happened-after-btn"
+                    title={t.trail.whatHappenedAfter}
+                    onClick={() => {
+                      if (selectedSpeech) openEvidenceTrail(selectedSpeech.id, "speech");
+                      if (selectedCommitment) openEvidenceTrail(selectedCommitment.id, "commitment");
+                    }}
+                  >
+                    <Clock3 size={15} /> {t.trail.whatHappenedAfter}
+                  </button>
+                )}
                 <button
                   className="icon-button"
                   aria-label={t.dialogs.exportJson}
@@ -1332,6 +1457,14 @@ function WorkspaceApp() {
                         onClick={() => setShowHansardPreview(!showHansardPreview)}
                       >
                         {showHansardPreview ? "Hide Document Preview" : "Preview Hansard Document"}
+                      </button>
+                      <button
+                        type="button"
+                        className="button small-button primary"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
+                        onClick={() => openEvidenceTrail(selectedSpeech.id, "speech")}
+                      >
+                        <Clock3 size={14} /> {t.trail.whatHappenedAfter}
                       </button>
                     </div>
                   </div>
@@ -1535,6 +1668,15 @@ function WorkspaceApp() {
                     <span className="eyebrow">{t.commitments.latestMetric.toUpperCase()}</span>
                     <p>{selectedCommitment.achieved_metric}</p>
                   </div>
+                </div>
+                <div style={{ margin: "18px 0 20px" }}>
+                  <button
+                    type="button"
+                    className="what-happened-after-btn"
+                    onClick={() => openEvidenceTrail(selectedCommitment.id, "commitment")}
+                  >
+                    <Clock3 size={15} /> {t.trail.whatHappenedAfter}
+                  </button>
                 </div>
                 <h3>{t.commitments.verificationTrail}</h3>
                 <div className="event-list">

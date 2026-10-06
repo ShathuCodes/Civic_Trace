@@ -12,6 +12,8 @@ from .data import (MP, Party, Speech, Commitment, IssueTimeline, SAMPLE_MPS,
                    SAMPLE_PARTIES, SAMPLE_SPEECHES, SAMPLE_COMMITMENTS, SAMPLE_TIMELINES)
 from .activity import (AttendanceRecord, MPMembership, SittingDay,
                        DEMO_ATTENDANCE, DEMO_MEMBERSHIPS, DEMO_SITTINGS)
+from .evidence import (TrailEvent, TrailRelationship, RelationshipReviewRequest,
+                       DEMO_TRAIL_EVENTS, DEMO_TRAIL_RELATIONSHIPS, format_supports_statement)
 
 MODE = os.getenv("DATA_MODE", "demo")
 MODELS = {"mps": MP, "parties": Party, "speeches": Speech,
@@ -23,6 +25,7 @@ DEMO = dict(mps=SAMPLE_MPS, parties=SAMPLE_PARTIES, speeches=SAMPLE_SPEECHES,
 async def lifespan(app):
     app.state.records = None
     app.state.activity = None
+    app.state.evidence = None
     app.state.loaded_at = None
     client = None
     try:
@@ -32,6 +35,10 @@ async def lifespan(app):
                 "attendance":  DEMO_ATTENDANCE,
                 "memberships": DEMO_MEMBERSHIPS,
                 "sittings":    DEMO_SITTINGS,
+            }
+            app.state.evidence = {
+                "events": [e.model_copy() for e in DEMO_TRAIL_EVENTS],
+                "relationships": [r.model_copy() for r in DEMO_TRAIL_RELATIONSHIPS],
             }
         elif MODE == "mongodb":
             from pymongo import MongoClient
@@ -59,7 +66,7 @@ async def lifespan(app):
             # Activity collections: attendance, memberships, sittings
             # These are optional; if absent, activity endpoints return unavailable state.
             def _load_activity(col_name, model_class, limit=20000):
-                if col_name not in db.list_collection_names():
+                if not hasattr(db, "list_collection_names") or col_name not in db.list_collection_names():
                     return None
                 if db[col_name].count_documents({}) > limit:
                     logging.warning("Activity collection %s exceeds pilot limit; skipping.", col_name)
@@ -71,6 +78,21 @@ async def lifespan(app):
                 "sittings":    _load_activity("sittings",    SittingDay),
             }
             app.state.activity = activity
+
+            # Evidence collections: trail_events, trail_relationships
+            def _load_evidence_col(col_name, model_class, limit=10000):
+                if not hasattr(db, "list_collection_names") or col_name not in db.list_collection_names():
+                    return None
+                if db[col_name].count_documents({}) > limit:
+                    logging.warning("Evidence collection %s exceeds limit; skipping.", col_name)
+                    return None
+                return [model_class.model_validate(doc) for doc in db[col_name].find({}, {"_id": 0})]
+            ev_events = _load_evidence_col("trail_events", TrailEvent)
+            ev_rels = _load_evidence_col("trail_relationships", TrailRelationship)
+            app.state.evidence = {
+                "events": ev_events if ev_events is not None else [],
+                "relationships": ev_rels if ev_rels is not None else [],
+            }
         else:
             raise ValueError("Unknown DATA_MODE")
         app.state.loaded_at = datetime.now(timezone.utc).isoformat()
@@ -91,6 +113,11 @@ def records(request: Request):
         raise HTTPException(503, "Dataset unavailable. Check backend configuration and record schema.")
     return request.app.state.records
 
+def _evidence_data(request: Request):
+    if request.app.state.evidence is None:
+        raise HTTPException(503, "Evidence dataset unavailable. Check backend configuration.")
+    return request.app.state.evidence
+
 def metadata(request: Request):
     return {"mode": MODE, "loaded_at": request.app.state.loaded_at,
             "verification": "unreviewed", "snapshot": True}
@@ -106,7 +133,14 @@ def root():
 
 @app.get("/api/workspace")
 def workspace(request: Request):
-    return {**records(request), "meta": metadata(request)}
+    base = records(request)
+    evi = _evidence_data(request)
+    return {
+        **base,
+        "trail_events": [e.model_dump() for e in evi["events"]],
+        "trail_relationships": [r.model_dump() for r in evi["relationships"]],
+        "meta": metadata(request),
+    }
 
 @app.get("/api/stats")
 def stats(request: Request):
@@ -514,3 +548,276 @@ def search_evidence(req: ChatRequest, request: Request):
             "confidence_score": 0, "grounded_claim_count": 0,
             "missing_evidence_flags": ["Records and links have not been independently verified.",
                                        "Generative RAG is not connected."], "suggested_queries": []}
+
+
+# ---------------------------------------------------------------------------
+# "What happened after?" Evidence Trail endpoints
+# ---------------------------------------------------------------------------
+
+REVIEW_TOKEN = os.getenv("REVIEW_TOKEN", "civic-trace-review-secret-2024")
+
+
+@app.get("/api/evidence-trails/{record_id}", name="get_evidence_trail")
+def get_evidence_trail(
+    record_id: str,
+    request: Request,
+    event_type: Optional[str] = Query(None, description="Filter by event type"),
+    date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD, YYYY-MM, or YYYY)"),
+    date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD, YYYY-MM, or YYYY)"),
+    include_unreviewed: bool = Query(False, description="Include unreviewed candidate suggestions"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+):
+    """
+    Retrieve the chronological evidence trail for an originating speech or commitment.
+    Separates established (accepted) evidence from unreviewed suggestions.
+    Every event contains an inspectable source citation or explicit unavailability notice.
+    """
+    data = records(request)
+    origin = None
+
+    # Check speeches first
+    speech = next((s for s in data["speeches"] if s.id == record_id), None)
+    if speech:
+        passage = speech.segments[0].text_en if speech.segments else speech.summary
+        origin = {
+            "record_id": speech.id,
+            "record_kind": "speech",
+            "title": speech.title,
+            "speaker_or_sponsor": speech.speaker_name,
+            "party": speech.party,
+            "role_or_org": speech.speaker_role,
+            "date": speech.sitting_date,
+            "date_precision": "day",
+            "original_quote_or_passage": passage,
+            "source_ref": f"{speech.hansard_vol}, pp. {speech.hansard_page}",
+            "source_url": speech.hansard_pdf_url,
+            "coverage_start": "2023-01-01",
+            "coverage_end": "2024-12-31",
+            "latest_update": "2025-01-20",
+            "coverage_note": "Indexed parliamentary sessions cover 9th Parliament 4th Session (2023–2024).",
+        }
+    else:
+        # Check commitments
+        commitment = next((c for c in data["commitments"] if c.id == record_id), None)
+        if commitment:
+            origin = {
+                "record_id": commitment.id,
+                "record_kind": "commitment",
+                "title": commitment.title,
+                "speaker_or_sponsor": commitment.sponsor_name,
+                "party": commitment.party,
+                "role_or_org": f"Manifesto Year {commitment.manifesto_year}",
+                "date": f"{commitment.manifesto_year}-01-01",
+                "date_precision": "year",
+                "original_quote_or_passage": commitment.original_quote,
+                "source_ref": commitment.manifesto_source,
+                "source_url": commitment.timeline[0].source_url if commitment.timeline else None,
+                "coverage_start": f"{commitment.manifesto_year}-01-01",
+                "coverage_end": "2025-01-31",
+                "latest_update": "2025-01-20",
+                "coverage_note": "Indexed follow-ups cover related Hansard debates, recorded votes, gazettes, and official statistical releases.",
+            }
+
+    if origin is None:
+        raise HTTPException(404, f"Record {record_id!r} not found in speeches or commitments")
+
+    evi = _evidence_data(request)
+    all_events = {e.id: e for e in evi["events"]}
+    matching_rels = [r for r in evi["relationships"] if r.from_record_id == record_id]
+
+    accepted_items = []
+    unreviewed_items = []
+
+    for rel in matching_rels:
+        event = all_events.get(rel.to_record_id)
+        if not event:
+            continue
+
+        # Filter by event_type
+        if event_type and event.event_type.casefold() != event_type.casefold():
+            continue
+
+        # Filter by date range (supports YYYY-MM-DD, YYYY-MM, or YYYY)
+        if date_from and event.date < date_from:
+            continue
+        if date_to and event.date > date_to:
+            continue
+
+        # Check for linked speeches
+        linked_speech = None
+        for linked_id in event.linked_source_ids:
+            sp = next((s for s in data["speeches"] if s.id == linked_id), None)
+            if sp:
+                linked_speech = {
+                    "id": sp.id,
+                    "title": sp.title,
+                    "speaker_name": sp.speaker_name,
+                    "sitting_date": sp.sitting_date,
+                    "hansard_vol": sp.hansard_vol,
+                    "hansard_page": sp.hansard_page,
+                    "hansard_pdf_url": sp.hansard_pdf_url,
+                }
+                break
+
+        trail_item = {
+            "event": event.model_dump(),
+            "relationship": rel.model_dump(),
+            "supports_statement": format_supports_statement(event.event_type, rel.relationship_type),
+            "linked_speech": linked_speech,
+        }
+
+        if rel.review_state == "accepted":
+            accepted_items.append(trail_item)
+        elif rel.review_state == "proposed":
+            unreviewed_items.append(trail_item)
+
+    # Sort chronologically by date then id
+    accepted_items.sort(key=lambda item: (item["event"]["date"], item["event"]["id"]))
+    unreviewed_items.sort(key=lambda item: (item["event"]["date"], item["event"]["id"]))
+
+    # Coverage status determination
+    if accepted_items:
+        coverage_status = "covered_with_events"
+        coverage_explanation = f"Found {len(accepted_items)} documented follow-up events indexed in official records."
+    elif unreviewed_items:
+        coverage_status = "unreviewed_only"
+        coverage_explanation = f"No accepted follow-up records. {len(unreviewed_items)} candidate suggestion(s) are awaiting review."
+    else:
+        coverage_status = "no_linked_records"
+        coverage_explanation = "No later linked evidence is available in the indexed sources for this record."
+
+    # Pagination on accepted items
+    total_accepted = len(accepted_items)
+    start = (page - 1) * page_size
+    paged_accepted = accepted_items[start : start + page_size]
+
+    return {
+        "origin": origin,
+        "established_trail": paged_accepted,
+        "unreviewed_suggestions": unreviewed_items if include_unreviewed else [],
+        "total_accepted": total_accepted,
+        "total_unreviewed": len(unreviewed_items),
+        "page": page,
+        "page_size": page_size,
+        "coverage_status": coverage_status,
+        "coverage_explanation": coverage_explanation,
+        "filters_applied": {
+            "event_type": event_type,
+            "date_from": date_from,
+            "date_to": date_to,
+            "include_unreviewed": include_unreviewed,
+        },
+        "disclaimer": "Evidence shows documented parliamentary and administrative actions. Existence of follow-up does not prove implementation completion, nor does absence of indexed records prove inaction.",
+    }
+
+
+@app.get("/api/trail-events/{event_id}", name="get_trail_event")
+def get_trail_event(event_id: str, request: Request):
+    """
+    Retrieve a single trail event with its supporting evidence context,
+    inspectable source references, and linked relationships.
+    """
+    evi = _evidence_data(request)
+    event = next((e for e in evi["events"] if e.id == event_id), None)
+    if event is None:
+        raise HTTPException(404, f"Trail event {event_id!r} not found")
+
+    data = records(request)
+    rels = [r.model_dump() for r in evi["relationships"] if r.to_record_id == event_id]
+    linked_speeches = [
+        {
+            "id": s.id,
+            "title": s.title,
+            "speaker_name": s.speaker_name,
+            "sitting_date": s.sitting_date,
+            "hansard_vol": s.hansard_vol,
+            "hansard_page": s.hansard_page,
+            "hansard_pdf_url": s.hansard_pdf_url,
+            "has_audio": bool(s.video_url or s.segments),
+        }
+        for s in data["speeches"]
+        if s.id in event.linked_source_ids
+    ]
+
+    return {
+        "event": event.model_dump(),
+        "relationships": rels,
+        "linked_speeches": linked_speeches,
+        "source_summary": {
+            "source_type": event.source_type,
+            "source_ref": event.source_ref,
+            "source_url": event.source_url,
+            "source_available": event.source_available,
+            "supporting_passage": event.supporting_passage,
+            "recording_interval": event.recording_interval,
+            "status_note": (
+                "Verified primary document citation."
+                if event.source_available and event.source_url
+                else "Primary source cited in archives but direct electronic document is unavailable."
+            ),
+        },
+    }
+
+
+@app.get("/api/trail-relationships", name="list_trail_relationships")
+def list_trail_relationships(
+    request: Request,
+    from_record_id: Optional[str] = Query(None),
+    to_record_id: Optional[str] = Query(None),
+    relationship_type: Optional[str] = Query(None),
+    review_state: Optional[str] = Query(None),
+):
+    """
+    Inspect raw explicit relationships between records and trail events.
+    """
+    evi = _evidence_data(request)
+    filtered = evi["relationships"]
+    if from_record_id:
+        filtered = [r for r in filtered if r.from_record_id == from_record_id]
+    if to_record_id:
+        filtered = [r for r in filtered if r.to_record_id == to_record_id]
+    if relationship_type:
+        filtered = [r for r in filtered if r.relationship_type.casefold() == relationship_type.casefold()]
+    if review_state:
+        filtered = [r for r in filtered if r.review_state.casefold() == review_state.casefold()]
+    return [r.model_dump() for r in filtered]
+
+
+@app.post("/api/trail-relationships/review", name="review_trail_relationship")
+def review_trail_relationship(
+    review_req: RelationshipReviewRequest,
+    request: Request,
+):
+    """
+    Authenticated reviewer workflow for accepting or rejecting candidate relationships.
+    Protects against unauthenticated write modifications.
+    """
+    auth_header = request.headers.get("X-Reviewer-Token") or request.headers.get("Authorization")
+    expected = REVIEW_TOKEN
+    if not auth_header or (auth_header != expected and auth_header != f"Bearer {expected}"):
+        raise HTTPException(
+            401,
+            "Unauthorized: Valid reviewer token required in X-Reviewer-Token or Authorization header",
+        )
+
+    evi = _evidence_data(request)
+    rel = next((r for r in evi["relationships"] if r.id == review_req.relationship_id), None)
+    if not rel:
+        raise HTTPException(404, f"Relationship {review_req.relationship_id!r} not found")
+
+    rel.review_state = review_req.review_state
+    rel.reviewer = review_req.reviewer
+    rel.review_date = datetime.now(timezone.utc).date().isoformat()
+    rel.updated_at = datetime.now(timezone.utc).isoformat()
+    if review_req.review_note:
+        rel.explanation = f"{rel.explanation} [Editorial note: {review_req.review_note}]"
+
+    return {
+        "status": "success",
+        "relationship_id": rel.id,
+        "new_review_state": rel.review_state,
+        "reviewer": rel.reviewer,
+        "review_date": rel.review_date,
+        "updated_at": rel.updated_at,
+    }
