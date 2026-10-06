@@ -237,3 +237,130 @@ export interface SpeechPage {
   label: string;
   coverage_note: string;
 }
+
+// --- Evidence Trail ("What happened after?") ---
+
+export type EventType =
+  | "parliamentary_question"
+  | "ministry_response"
+  | "further_debate"
+  | "bill_amendment"
+  | "recorded_vote"
+  | "budget_allocation"
+  | "implementation_report"
+  | "outcome_indicator"
+  | "correction_withdrawal";
+
+export type DatePrecision = "day" | "month" | "year";
+
+export type RelationshipType =
+  | "responds_to"
+  | "refers_to"
+  | "amends"
+  | "allocates_funding_for"
+  | "reports_implementation_of"
+  | "reports_outcomes_related_to"
+  | "corrects_or_withdraws";
+
+export type IdentificationMethod =
+  | "explicit_reference"
+  | "manual_review"
+  | "automated_suggestion";
+
+export type ReviewState = "accepted" | "proposed" | "rejected";
+
+export type ReviewStatus = "reviewed" | "unreviewed" | "disputed" | "withdrawn";
+
+export interface TrailEvent {
+  id: string;
+  event_type: EventType;
+  date: string;
+  date_precision: DatePrecision;
+  title: string;
+  description: string;
+  actors: string[];
+  linked_source_ids: string[];
+  source_type: string;
+  source_ref: string | null;
+  source_url: string | null;
+  supporting_passage: string | null;
+  recording_interval: string | null;
+  source_available: boolean;
+  review_status: ReviewStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrailRelationship {
+  id: string;
+  from_record_id: string;
+  to_record_id: string;
+  relationship_type: RelationshipType;
+  explanation: string;
+  evidence_citation: string;
+  identification_method: IdentificationMethod;
+  review_state: ReviewState;
+  reviewer: string | null;
+  review_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvidenceTrailSummary {
+  record_id: string;
+  record_kind: "speech" | "commitment";
+  title: string;
+  speaker_or_sponsor: string;
+  party?: string;
+  role_or_org?: string;
+  date: string;
+  date_precision: DatePrecision;
+  original_quote_or_passage: string;
+  source_ref: string;
+  source_url: string | null;
+  coverage_start: string;
+  coverage_end: string;
+  latest_update: string;
+  coverage_note: string;
+}
+
+export interface TrailItem {
+  event: TrailEvent;
+  relationship: TrailRelationship;
+  supports_statement: string;
+  linked_speech?: {
+    id: string;
+    title: string;
+    speaker_name: string;
+    sitting_date: string;
+    hansard_vol: string;
+    hansard_page: string;
+    hansard_pdf_url: string;
+    has_audio?: boolean;
+  } | null;
+}
+
+export interface EvidenceTrailResponse {
+  origin: EvidenceTrailSummary;
+  established_trail: TrailItem[];
+  unreviewed_suggestions: TrailItem[];
+  total_accepted: number;
+  total_unreviewed: number;
+  page: number;
+  page_size: number;
+  coverage_status:
+    | "covered_with_events"
+    | "unreviewed_only"
+    | "no_linked_records"
+    | "period_uncovered"
+    | "source_unavailable";
+  coverage_explanation: string;
+  filters_applied: {
+    event_type?: string | null;
+    date_from?: string | null;
+    date_to?: string | null;
+    include_unreviewed?: boolean;
+  };
+  disclaimer: string;
+}
+

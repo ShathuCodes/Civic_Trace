@@ -9,6 +9,11 @@ import type {
   AttendancePage,
   AttendanceRecord,
   SpeechPage,
+  TrailEvent,
+  TrailRelationship,
+  EvidenceTrailResponse,
+  TrailItem,
+  EvidenceTrailSummary,
 } from "./types";
 import fixtures from "./fixtures/demo.json";
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(
@@ -20,11 +25,16 @@ export const LOCAL_MPS = fixtures.mps as MP[];
 export const LOCAL_SPEECHES = fixtures.speeches as Speech[];
 export const LOCAL_COMMITMENTS = fixtures.commitments as Commitment[];
 export const LOCAL_TIMELINES = fixtures.timelines as IssueTimeline[];
+export const LOCAL_TRAIL_EVENTS = ((fixtures as any).trail_events || []) as TrailEvent[];
+export const LOCAL_TRAIL_RELATIONSHIPS = ((fixtures as any).trail_relationships || []) as TrailRelationship[];
+
 export interface Workspace {
   mps: MP[];
   speeches: Speech[];
   commitments: Commitment[];
   timelines: IssueTimeline[];
+  trail_events?: TrailEvent[];
+  trail_relationships?: TrailRelationship[];
   meta: {
     mode: "demo" | "mongodb";
     loaded_at: string | null;
@@ -37,6 +47,8 @@ export const DEMO_WORKSPACE: Workspace = {
   speeches: LOCAL_SPEECHES,
   commitments: LOCAL_COMMITMENTS,
   timelines: LOCAL_TIMELINES,
+  trail_events: LOCAL_TRAIL_EVENTS,
+  trail_relationships: LOCAL_TRAIL_RELATIONSHIPS,
   meta: {
     mode: "demo",
     loaded_at: null,
@@ -399,4 +411,242 @@ export const CivicApi = {
       return computeLocalSpeeches(mpId, params);
     }
   },
+  getEvidenceTrail: async (
+    recordId: string,
+    params: {
+      event_type?: string;
+      date_from?: string;
+      date_to?: string;
+      include_unreviewed?: boolean;
+      page?: number;
+      page_size?: number;
+    } = {},
+    signal?: AbortSignal,
+  ): Promise<EvidenceTrailResponse> => {
+    const q = new URLSearchParams();
+    if (params.event_type) q.set("event_type", params.event_type);
+    if (params.date_from) q.set("date_from", params.date_from);
+    if (params.date_to) q.set("date_to", params.date_to);
+    if (params.include_unreviewed) q.set("include_unreviewed", "true");
+    if (params.page) q.set("page", String(params.page));
+    if (params.page_size) q.set("page_size", String(params.page_size));
+    const qs = q.toString();
+    try {
+      return await request<EvidenceTrailResponse>(
+        `/evidence-trails/${encodeURIComponent(recordId)}${qs ? "?" + qs : ""}`,
+        { signal },
+      );
+    } catch (err: any) {
+      if (signal?.aborted) throw err;
+      return computeLocalEvidenceTrail(recordId, params);
+    }
+  },
+  getTrailEvent: async (
+    eventId: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    event: TrailEvent;
+    relationships: TrailRelationship[];
+    linked_speeches: any[];
+    source_summary: any;
+  }> => {
+    try {
+      return await request(`/trail-events/${encodeURIComponent(eventId)}`, { signal });
+    } catch (err: any) {
+      if (signal?.aborted) throw err;
+      const event = LOCAL_TRAIL_EVENTS.find((e) => e.id === eventId);
+      if (!event) throw new Error("Event not found");
+      const rels = LOCAL_TRAIL_RELATIONSHIPS.filter((r) => r.to_record_id === eventId);
+      const speeches = LOCAL_SPEECHES.filter((s) => event.linked_source_ids.includes(s.id));
+      return {
+        event,
+        relationships: rels,
+        linked_speeches: speeches.map((s) => ({
+          id: s.id,
+          title: s.title,
+          speaker_name: s.speaker_name,
+          sitting_date: s.sitting_date,
+          hansard_vol: s.hansard_vol,
+          hansard_page: s.hansard_page,
+          hansard_pdf_url: s.hansard_pdf_url,
+          has_audio: Boolean(s.video_url || s.segments?.length),
+        })),
+        source_summary: {
+          source_type: event.source_type,
+          source_ref: event.source_ref,
+          source_url: event.source_url,
+          source_available: event.source_available,
+          supporting_passage: event.supporting_passage,
+          recording_interval: event.recording_interval,
+          status_note: event.source_available && event.source_url
+            ? "Verified primary document citation."
+            : "Primary source cited in archives but direct electronic document is unavailable.",
+        },
+      };
+    }
+  },
 };
+
+export const api = CivicApi;
+
+function formatLocalSupports(eventType: string): string {
+  const map: Record<string, string> = {
+    parliamentary_question: "A formal parliamentary question was tabled and recorded in Hansard.",
+    ministry_response: "A government or ministry response was officially recorded.",
+    further_debate: "Subsequent parliamentary debate was documented on the official record.",
+    bill_amendment: "A legislative bill or amendment was officially tabled. Note: Introduction does not imply passage.",
+    recorded_vote: "A recorded division vote was taken in Parliament.",
+    budget_allocation: "A budget allocation was approved. Note: Allocation authorizes funding but does not verify disbursement.",
+    implementation_report: "An official implementation report or gazette was published.",
+    outcome_indicator: "A published socio-economic outcome indicator was recorded. Note: Macro indicators reflect multiple systemic factors and cannot be attributed to a single actor.",
+    correction_withdrawal: "A formal correction or withdrawal was submitted on the parliamentary record.",
+  };
+  return map[eventType] || "A follow-up event was recorded in indexed sources.";
+}
+
+export function computeLocalEvidenceTrail(
+  recordId: string,
+  params: {
+    event_type?: string;
+    date_from?: string;
+    date_to?: string;
+    include_unreviewed?: boolean;
+    page?: number;
+    page_size?: number;
+  } = {},
+): EvidenceTrailResponse {
+  const speech = LOCAL_SPEECHES.find((s) => s.id === recordId);
+  const commitment = LOCAL_COMMITMENTS.find((c) => c.id === recordId);
+
+  let origin: EvidenceTrailSummary;
+  if (speech) {
+    const passage = speech.segments?.[0]?.text_en || speech.summary;
+    origin = {
+      record_id: speech.id,
+      record_kind: "speech",
+      title: speech.title,
+      speaker_or_sponsor: speech.speaker_name,
+      party: speech.party,
+      role_or_org: speech.speaker_role,
+      date: speech.sitting_date,
+      date_precision: "day",
+      original_quote_or_passage: passage,
+      source_ref: `${speech.hansard_vol}, pp. ${speech.hansard_page}`,
+      source_url: speech.hansard_pdf_url,
+      coverage_start: "2023-01-01",
+      coverage_end: "2024-12-31",
+      latest_update: "2025-01-20",
+      coverage_note: "Indexed parliamentary sessions cover 9th Parliament 4th Session (2023–2024).",
+    };
+  } else if (commitment) {
+    origin = {
+      record_id: commitment.id,
+      record_kind: "commitment",
+      title: commitment.title,
+      speaker_or_sponsor: commitment.sponsor_name,
+      party: commitment.party,
+      role_or_org: `Manifesto Year ${commitment.manifesto_year}`,
+      date: `${commitment.manifesto_year}-01-01`,
+      date_precision: "year",
+      original_quote_or_passage: commitment.original_quote,
+      source_ref: commitment.manifesto_source,
+      source_url: commitment.timeline?.[0]?.source_url || null,
+      coverage_start: `${commitment.manifesto_year}-01-01`,
+      coverage_end: "2025-01-31",
+      latest_update: "2025-01-20",
+      coverage_note: "Indexed follow-ups cover related Hansard debates, recorded votes, gazettes, and official statistical releases.",
+    };
+  } else {
+    throw new Error(`Record ${recordId} not found in speeches or commitments`);
+  }
+
+  const matchingRels = LOCAL_TRAIL_RELATIONSHIPS.filter(
+    (r) => r.from_record_id === recordId,
+  );
+
+  const acceptedItems: TrailItem[] = [];
+  const unreviewedItems: TrailItem[] = [];
+
+  for (const rel of matchingRels) {
+    const event = LOCAL_TRAIL_EVENTS.find((e) => e.id === rel.to_record_id);
+    if (!event) continue;
+
+    if (params.event_type && event.event_type.toLowerCase() !== params.event_type.toLowerCase()) {
+      continue;
+    }
+    if (params.date_from && event.date < params.date_from) {
+      continue;
+    }
+    if (params.date_to && event.date > params.date_to) {
+      continue;
+    }
+
+    const linkedSpeechObj = event.linked_source_ids.length
+      ? LOCAL_SPEECHES.find((s) => event.linked_source_ids.includes(s.id))
+      : null;
+
+    const trailItem: TrailItem = {
+      event,
+      relationship: rel,
+      supports_statement: formatLocalSupports(event.event_type),
+      linked_speech: linkedSpeechObj
+        ? {
+            id: linkedSpeechObj.id,
+            title: linkedSpeechObj.title,
+            speaker_name: linkedSpeechObj.speaker_name,
+            sitting_date: linkedSpeechObj.sitting_date,
+            hansard_vol: linkedSpeechObj.hansard_vol,
+            hansard_page: linkedSpeechObj.hansard_page,
+            hansard_pdf_url: linkedSpeechObj.hansard_pdf_url,
+            has_audio: Boolean(linkedSpeechObj.video_url || linkedSpeechObj.segments?.length),
+          }
+        : null,
+    };
+
+    if (rel.review_state === "accepted") {
+      acceptedItems.push(trailItem);
+    } else if (rel.review_state === "proposed") {
+      unreviewedItems.push(trailItem);
+    }
+  }
+
+  acceptedItems.sort((a, b) => a.event.date.localeCompare(b.event.date) || a.event.id.localeCompare(b.event.id));
+  unreviewedItems.sort((a, b) => a.event.date.localeCompare(b.event.date) || a.event.id.localeCompare(b.event.id));
+
+  let coverageStatus: EvidenceTrailResponse["coverage_status"] = "no_linked_records";
+  let coverageExplanation = "No later linked evidence is available in the indexed sources for this record.";
+
+  if (acceptedItems.length > 0) {
+    coverageStatus = "covered_with_events";
+    coverageExplanation = `Found ${acceptedItems.length} documented follow-up events indexed in official records.`;
+  } else if (unreviewedItems.length > 0) {
+    coverageStatus = "unreviewed_only";
+    coverageExplanation = `No accepted follow-up records. ${unreviewedItems.length} candidate suggestion(s) are awaiting review.`;
+  }
+
+  const page = params.page || 1;
+  const pageSize = params.page_size || 50;
+  const start = (page - 1) * pageSize;
+  const pagedAccepted = acceptedItems.slice(start, start + pageSize);
+
+  return {
+    origin,
+    established_trail: pagedAccepted,
+    unreviewed_suggestions: params.include_unreviewed ? unreviewedItems : [],
+    total_accepted: acceptedItems.length,
+    total_unreviewed: unreviewedItems.length,
+    page,
+    page_size: pageSize,
+    coverage_status: coverageStatus,
+    coverage_explanation: coverageExplanation,
+    filters_applied: {
+      event_type: params.event_type || null,
+      date_from: params.date_from || null,
+      date_to: params.date_to || null,
+      include_unreviewed: Boolean(params.include_unreviewed),
+    },
+    disclaimer:
+      "Evidence shows documented parliamentary and administrative actions. Existence of follow-up does not prove implementation completion, nor does absence of indexed records prove inaction.",
+  };
+}
+
