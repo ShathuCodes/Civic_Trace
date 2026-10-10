@@ -22,17 +22,20 @@ import {
   Pause,
   Play,
   Search,
+  Send,
   SlidersHorizontal,
+  Sparkles,
   Square,
   Sun,
   Users,
   Volume2,
   VolumeX,
   X,
+  Loader2,
 } from "lucide-react";
-import { DEMO_WORKSPACE, loadWorkspace } from "./api";
+import { CivicApi, DEMO_WORKSPACE, loadWorkspace } from "./api";
 import type { Workspace } from "./api";
-import type { Commitment, MP, Speech } from "./types";
+import type { ChatResponse, Commitment, MP, Speech } from "./types";
 import { MPActivityProfile } from "./MPActivityProfile";
 import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
 import type { Language } from "./i18n/types";
@@ -361,6 +364,24 @@ function WorkspaceApp() {
   // transcript language (separate from UI language)
   const [transcriptLang, setTranscriptLang] = useState("en");
   const [showHansardPreview, setShowHansardPreview] = useState(false);
+  const [backendOffline, setBackendOffline] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<ChatResponse | null>(null);
+
+  async function runAiQuery(q: string) {
+    if (!q.trim()) return;
+    setAiLoading(true);
+    try {
+      const res = await CivicApi.askAssistant(q);
+      setAiResult(res);
+    } catch {
+      setToast("Unable to reach assistant. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
   const searchRef = useRef<HTMLInputElement>(null);
   const voice = useVoiceInput({
     language,
@@ -409,27 +430,37 @@ function WorkspaceApp() {
     return () => window.removeEventListener("keydown", shortcut);
   }, []);
   useEffect(() => {
-    if (STANDALONE_DEMO) return;
+    if (STANDALONE_DEMO) {
+      setData(DEMO_WORKSPACE);
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
+    setLoading(true);
     loadWorkspace(controller.signal)
       .then((value) => {
         setData(value);
+        setBackendOffline(false);
+        setError("");
         setLoading(false);
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setError(
-            "We couldn’t reach a compatible data service. Start the backend or retry the connection.",
-          );
+          // Gracefully fallback to demo workspace so data ALWAYS shows immediately
+          setData(DEMO_WORKSPACE);
+          setBackendOffline(true);
+          setError("");
           setLoading(false);
         }
       })
       .finally(() => clearTimeout(timeout));
     const timeout = setTimeout(() => {
       controller.abort();
-      setError("The data service took too long to respond. Please retry.");
+      setData(DEMO_WORKSPACE);
+      setBackendOffline(true);
+      setError("");
       setLoading(false);
-    }, 12000);
+    }, 4000);
     return () => {
       clearTimeout(timeout);
       controller.abort();
@@ -816,22 +847,41 @@ function WorkspaceApp() {
         </header>
         <main id="main" tabIndex={-1}>
           <div className="data-notice">
-            <span className="notice-dot" />
+            <span className={`notice-dot ${backendOffline ? "notice-dot-offline" : ""}`} />
             <span>
               <strong>
-                {data?.meta.mode === "mongodb"
-                  ? t.overview.connectedDataset
-                  : t.overview.demoWorkspace}
+                {backendOffline
+                  ? "Offline Sample Dataset"
+                  : data?.meta.mode === "mongodb"
+                    ? t.overview.connectedDataset
+                    : t.overview.demoWorkspace}
               </strong>
               <span className="notice-detail">
-                {data?.meta.mode === "mongodb"
-                  ? ` · ${t.overview.connectedNotice}`
-                  : ` · ${t.overview.demoNotice}`}
+                {backendOffline
+                  ? " · FastAPI backend not running on port 8000"
+                  : data?.meta.mode === "mongodb"
+                    ? ` · ${t.overview.connectedNotice}`
+                    : ` · ${t.overview.demoNotice}`}
               </span>
+              {!backendOffline && data?.meta?.gemini_connected && (
+                <span className="badge badge-verified" style={{ marginLeft: 8 }}>
+                  <Sparkles size={12} /> Gemini AI Ready
+                </span>
+              )}
             </span>
-            <button onClick={() => setHelp(true)}>
-              {t.overview.aboutData} <ArrowUpRight size={13} />
-            </button>
+            {backendOffline ? (
+              <button
+                className="button small-button"
+                style={{ marginLeft: "auto" }}
+                onClick={() => setAttempt((a) => a + 1)}
+              >
+                Connect to Backend
+              </button>
+            ) : (
+              <button onClick={() => setHelp(true)}>
+                {t.overview.aboutData} <ArrowUpRight size={13} />
+              </button>
+            )}
           </div>
           {page !== "trail" && (
             <>
@@ -920,6 +970,19 @@ function WorkspaceApp() {
                   )}
                   <button className="search-submit" type="submit">
                     {t.nav.searchBtn} <ArrowRight size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-ask-btn"
+                    onClick={() => {
+                      setAiQuestion(query || "");
+                      setAiModalOpen(true);
+                      if (query.trim()) runAiQuery(query);
+                    }}
+                    title="Ask Parliament AI Assistant"
+                  >
+                    <Sparkles size={15} />
+                    <span>Ask AI</span>
                   </button>
                 </form>
 
@@ -1826,6 +1889,148 @@ function WorkspaceApp() {
               {data?.meta.loaded_at &&
                 ` Snapshot loaded ${new Date(data.meta.loaded_at).toLocaleString("en-GB")}.`}
             </p>
+          </div>
+        </Dialog>
+      )}
+      {aiModalOpen && (
+        <Dialog title="PARLIAMENT AI ASSISTANT" onClose={() => setAiModalOpen(false)} wide>
+          <div className="ai-modal-content">
+            <div className="ai-modal-intro">
+              <p className="muted" style={{ margin: 0 }}>
+                Ask questions across Sri Lankan parliamentary Hansard records and policy commitments. Responses are grounded strictly in indexed records using Gemini 3.8 Flash & the Hansard RAG service.
+              </p>
+            </div>
+
+            <form
+              className="ai-modal-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (aiQuestion.trim()) runAiQuery(aiQuestion);
+              }}
+            >
+              <div className="ai-input-wrap">
+                <input
+                  type="text"
+                  className="ai-input"
+                  placeholder="e.g., What did Dr. Harsha de Silva say about VAT exemptions?"
+                  value={aiQuestion}
+                  onChange={(e) => setAiQuestion(e.target.value)}
+                  disabled={aiLoading}
+                  autoFocus
+                />
+                <button type="submit" className="button primary" disabled={aiLoading || !aiQuestion.trim()}>
+                  {aiLoading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+                  <span>{aiLoading ? "Thinking..." : "Ask"}</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="ai-quick-prompts">
+              <span className="eyebrow">Suggested Inquiries</span>
+              <div className="choice-list">
+                {[
+                  "What did Dr. Harsha de Silva say about VAT exemptions?",
+                  "What are the recorded commitments on public debt?",
+                  "Summarize Hansard records on free healthcare funding",
+                  "What did Anura Kumara Dissanayake state on procurement?",
+                ].map((promptText) => (
+                  <button
+                    key={promptText}
+                    type="button"
+                    className="choice"
+                    onClick={() => {
+                      setAiQuestion(promptText);
+                      runAiQuery(promptText);
+                    }}
+                    disabled={aiLoading}
+                  >
+                    {promptText}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {aiLoading && (
+              <div className="ai-loading-state">
+                <Loader2 size={28} className="spin" />
+                <p>Retrieving parliamentary records and synthesizing grounded response...</p>
+              </div>
+            )}
+
+            {aiResult && !aiLoading && (
+              <div className="ai-result-card">
+                <div className="ai-result-head">
+                  <div className="ai-badge-group">
+                    <span className="badge badge-verified">
+                      <Sparkles size={13} /> {aiResult.confidence_score > 0 ? `${aiResult.confidence_score}% Grounded` : "Extractive Record"}
+                    </span>
+                    <span className="badge">
+                      {aiResult.citations.length} Citation{aiResult.citations.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {aiResult.answer && (
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Listen to answer"
+                      onClick={() => tts.speak(aiResult.answer)}
+                    >
+                      <Volume2 size={16} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="ai-answer-text">
+                  <p style={{ margin: 0 }}>{aiResult.answer}</p>
+                </div>
+
+                {aiResult.citations.length > 0 && (
+                  <div className="ai-citations-section">
+                    <span className="eyebrow">Indexed Hansard Citations</span>
+                    <div className="ai-citations-list">
+                      {aiResult.citations.map((c, idx) => (
+                        <div key={idx} className="ai-citation-item">
+                          <div className="ai-citation-info">
+                            <strong>{c.title}</strong>
+                            <span className="muted">{c.source_type} · {c.ref_code}</span>
+                          </div>
+                          <div className="ai-citation-actions">
+                            {c.speech_id && (
+                              <button
+                                type="button"
+                                className="button small-button"
+                                onClick={() => {
+                                  setAiModalOpen(false);
+                                  open("speech", c.speech_id!);
+                                }}
+                              >
+                                View Speech
+                              </button>
+                            )}
+                            {c.url && (
+                              <a
+                                href={c.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="source-link"
+                              >
+                                Hansard PDF <ArrowUpRight size={13} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiResult.missing_evidence_flags && aiResult.missing_evidence_flags.length > 0 && (
+                  <div className="inline-note">
+                    {aiResult.missing_evidence_flags.join(" ")}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </Dialog>
       )}

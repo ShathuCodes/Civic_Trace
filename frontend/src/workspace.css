@@ -367,6 +367,10 @@ main {
   background: var(--amber);
   flex-shrink: 0;
 }
+.notice-dot-offline {
+  background: #a3721e;
+  animation: pulse-dot 2s infinite ease-in-out;
+}
 .data-notice strong {
   font-weight: 600;
 }
@@ -3208,5 +3212,142 @@ details[open] .ap-filter-chevron {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ── AI Assistant styles ─────────────────────────────────── */
+.ai-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #195441 0%, #1e6d53 100%);
+  color: #fff !important;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 14px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(25, 84, 65, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ai-ask-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 84, 65, 0.35);
+}
+.ai-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+.ai-input-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ai-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.ai-input:focus {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+.ai-quick-prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--muted);
+}
+.ai-result-card {
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ai-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ai-badge-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.badge-verified {
+  background: var(--green-soft) !important;
+  color: var(--green) !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-answer-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.ai-citations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.ai-citations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-citation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  gap: 12px;
+}
+.ai-citation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ai-citation-info strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-citation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
 }
 
