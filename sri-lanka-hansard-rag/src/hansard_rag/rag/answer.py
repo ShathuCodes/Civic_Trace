@@ -46,9 +46,6 @@ class HansardRAGService:
         target_language: str,
     ) -> str:
         """Generate grounded answer using Gemini LLM."""
-        from google import genai
-        client = genai.Client(api_key=self.api_key)
-
         prompt = USER_PROMPT_TEMPLATE.format(
             context=context,
             question=question,
@@ -58,15 +55,38 @@ class HansardRAGService:
         loop = asyncio.get_running_loop()
 
         def _call() -> str:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config={
-                    "system_instruction": STRICT_RAG_SYSTEM_PROMPT,
-                    "temperature": 0.1,
-                },
-            )
-            return response.text or ""
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_key)
+                for model_name in ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]:
+                    try:
+                        model = genai.GenerativeModel(
+                            model_name=model_name,
+                            system_instruction=STRICT_RAG_SYSTEM_PROMPT,
+                        )
+                        resp = model.generate_content(prompt, generation_config={"temperature": 0.1})
+                        if resp and resp.text:
+                            return resp.text.strip()
+                    except Exception as me:
+                        logger.debug("Model %s generation attempt failed: %s", model_name, me)
+                        continue
+            except ImportError:
+                pass
+
+            try:
+                from google import genai
+                client = genai.Client(api_key=self.api_key)
+                response = client.models.generate_content(
+                    model="gemini-3.8-flash",
+                    contents=prompt,
+                    config={
+                        "system_instruction": STRICT_RAG_SYSTEM_PROMPT,
+                        "temperature": 0.1,
+                    },
+                )
+                return (response.text or "").strip()
+            except Exception as e:
+                raise RuntimeError(f"Gemini client generation failed: {e}")
 
         return await loop.run_in_executor(None, _call)
 

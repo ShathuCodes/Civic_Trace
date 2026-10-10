@@ -40,6 +40,8 @@ export interface Workspace {
     loaded_at: string | null;
     verification: string;
     snapshot: boolean;
+    gemini_connected?: boolean;
+    qdrant_configured?: boolean;
   };
 }
 export const DEMO_WORKSPACE: Workspace = {
@@ -343,12 +345,53 @@ export const CivicApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ leader_ids: leaderIds, topics }),
     }),
-  askAssistant: (question: string) =>
-    request<ChatResponse>("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
-    }),
+  askAssistant: async (question: string): Promise<ChatResponse> => {
+    try {
+      return await request<ChatResponse>("/rag/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: question, question }),
+      });
+    } catch {
+      try {
+        return await request<ChatResponse>("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: question, question }),
+        });
+      } catch {
+        // Local fallback when running offline
+        const qLower = question.toLowerCase();
+        const matches = LOCAL_SPEECHES.filter(
+          (s) =>
+            s.title.toLowerCase().includes(qLower) ||
+            s.topic.toLowerCase().includes(qLower) ||
+            s.speaker_name.toLowerCase().includes(qLower) ||
+            s.summary.toLowerCase().includes(qLower),
+        ).slice(0, 3);
+
+        const answer = matches.length
+          ? `Indexed parliamentary records show ${matches.map((m) => `${m.speaker_name} on ${m.sitting_date} (${m.topic})`).join("; ")}.`
+          : `No matching records found in this dataset for "${question}". Try an MP name like "Dr. Harsha de Silva" or a policy topic like "Taxation".`;
+
+        return {
+          answer,
+          citations: matches.map((m) => ({
+            title: m.title,
+            source_type: "Hansard",
+            ref_code: `${m.hansard_vol}, p. ${m.hansard_page}`,
+            url: m.hansard_pdf_url,
+            speech_id: m.id,
+            confidence_score: 75,
+          })),
+          confidence_score: matches.length ? 75 : 0,
+          grounded_claim_count: matches.length,
+          missing_evidence_flags: ["Local offline demonstration mode."],
+          suggested_queries: matches.map((m) => `What did ${m.speaker_name} say about ${m.topic}?`),
+        };
+      }
+    }
+  },
   searchParliament: (query: string, language: "en" | "si" | "ta" = "en") =>
     request<{ results: Array<{ type: string; title: string; snippet: string; link: string }> }>("/search", {
       method: "POST",
