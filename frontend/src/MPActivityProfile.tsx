@@ -601,15 +601,18 @@ export function MPActivityProfile({
   const [activeTopic, setActiveTopic] = useState("");
   const summaryAbortRef = useRef<AbortController | null>(null);
 
-  // Sync filters whenever initialFilters or MP changes
+  // Sync initialFilters whenever parent component updates them
   useEffect(() => {
-    const next = {
-      dateFrom: initialFilters.dateFrom ?? "",
-      dateTo: initialFilters.dateTo ?? "",
-      session: initialFilters.session ?? "",
-    };
-    setFilters(next);
-    setPendingFilters(next);
+    if (initialFilters.dateFrom !== undefined || initialFilters.dateTo !== undefined || initialFilters.session !== undefined) {
+      const next = {
+        dateFrom: initialFilters.dateFrom ?? "",
+        dateTo: initialFilters.dateTo ?? "",
+        session: initialFilters.session ?? "",
+      };
+      setPendingFilters(next);
+      setFilters(next);
+      setActiveTopic("");
+    }
   }, [mp.id, initialFilters.dateFrom, initialFilters.dateTo, initialFilters.session]);
 
   // Validate date range client-side
@@ -620,25 +623,26 @@ export function MPActivityProfile({
       ? "Start date must not be later than end date."
       : "";
 
-  const handleDateFromChange = (val: string) => {
-    setPendingFilters((f) => ({ ...f, dateFrom: val }));
-    if (!pendingFilters.dateTo || !val || val <= pendingFilters.dateTo) {
-      setFilters((f) => ({ ...f, dateFrom: val }));
+  const updateDateFrom = (newDateFrom: string) => {
+    setPendingFilters((f) => ({ ...f, dateFrom: newDateFrom }));
+    if (!filters.dateTo || !newDateFrom || newDateFrom <= filters.dateTo) {
+      setFilters((f) => ({ ...f, dateFrom: newDateFrom }));
       setActiveTopic("");
     }
   };
 
-  const handleDateToChange = (val: string) => {
-    setPendingFilters((f) => ({ ...f, dateTo: val }));
-    if (!pendingFilters.dateFrom || !val || val >= pendingFilters.dateFrom) {
-      setFilters((f) => ({ ...f, dateTo: val }));
+  const updateDateTo = (newDateTo: string) => {
+    setPendingFilters((f) => ({ ...f, dateTo: newDateTo }));
+    if (!filters.dateFrom || !newDateTo || filters.dateFrom <= newDateTo) {
+      setFilters((f) => ({ ...f, dateTo: newDateTo }));
       setActiveTopic("");
     }
   };
 
-  const handleSessionChange = (val: string) => {
-    setPendingFilters((f) => ({ ...f, session: val }));
-    setFilters((f) => ({ ...f, session: val }));
+  const setPreset = (from: string, to: string, sess = "") => {
+    const next = { dateFrom: from, dateTo: to, session: sess };
+    setPendingFilters(next);
+    setFilters(next);
     setActiveTopic("");
   };
 
@@ -649,10 +653,7 @@ export function MPActivityProfile({
   };
 
   const clearFilters = () => {
-    const blank = { dateFrom: "", dateTo: "", session: "" };
-    setPendingFilters(blank);
-    setFilters(blank);
-    setActiveTopic("");
+    setPreset("", "");
   };
 
   // Load summary when filters change
@@ -727,58 +728,58 @@ export function MPActivityProfile({
       )}
 
       {/* Filters */}
-      <details className="ap-filters">
+      <details className="ap-filters" open>
         <summary className="ap-filter-summary">
-          <SlidersHorizontal size={14} />
-          <span>Filters</span>
-          {(filters.dateFrom || filters.dateTo || filters.session) && (
-            <span className="ap-filter-active-dot" aria-label="Filters active" />
-          )}
+          <CalendarDays size={15} />
+          <span>Filter by Date & Sitting Period</span>
+          {(filters.dateFrom || filters.dateTo || filters.session) ? (
+            <span className="ap-filter-active-dot" title="Custom date filter active" />
+          ) : null}
+          <span className="muted small" style={{ marginLeft: "auto", marginRight: "8px" }}>
+            {filters.dateFrom || filters.dateTo
+              ? `${filters.dateFrom || "Earliest"} → ${filters.dateTo || "Latest"}`
+              : "All records"}
+          </span>
           <ChevronDown size={14} className="ap-filter-chevron" />
         </summary>
         <div className="ap-filter-body">
           {/* Quick presets */}
           <div className="ap-presets-row" role="group" aria-label="Date range quick presets">
-            <span className="muted small">Quick range:</span>
+            <span className="muted small">Quick period:</span>
             <button
               type="button"
-              className="ap-preset-btn"
-              onClick={clearFilters}
+              className={`ap-preset-btn ${!filters.dateFrom && !filters.dateTo ? "active" : ""}`}
+              onClick={() => setPreset("", "")}
             >
               All time
             </button>
             <button
               type="button"
-              className="ap-preset-btn"
-              onClick={() => {
-                const p = { dateFrom: "2024-01-01", dateTo: "2024-12-31", session: "" };
-                setPendingFilters(p);
-                setFilters(p);
-              }}
+              className={`ap-preset-btn ${filters.dateFrom === "2024-01-01" && filters.dateTo === "2024-12-31" ? "active" : ""}`}
+              onClick={() => setPreset("2024-01-01", "2024-12-31")}
             >
-              2024 Sessions
+              2024 Full Year
             </button>
             <button
               type="button"
-              className="ap-preset-btn"
-              onClick={() => {
-                const s = "9th Parliament 4th Session";
-                setPendingFilters({ dateFrom: "", dateTo: "", session: s });
-                setFilters({ dateFrom: "", dateTo: "", session: s });
-              }}
+              className={`ap-preset-btn ${filters.dateFrom === "2024-07-01" && filters.dateTo === "2024-12-31" ? "active" : ""}`}
+              onClick={() => setPreset("2024-07-01", "2024-12-31")}
             >
-              9th Parliament
+              Late 2024 (Hansards)
             </button>
             <button
               type="button"
-              className="ap-preset-btn"
-              onClick={() => {
-                const oneYearAgo = "2023-01-01";
-                setPendingFilters((f) => ({ ...f, dateFrom: oneYearAgo, dateTo: "" }));
-                setFilters((f) => ({ ...f, dateFrom: oneYearAgo, dateTo: "" }));
-              }}
+              className={`ap-preset-btn ${filters.dateFrom === "2024-01-01" && filters.dateTo === "2024-06-30" ? "active" : ""}`}
+              onClick={() => setPreset("2024-01-01", "2024-06-30")}
             >
-              From 2023
+              Early 2024
+            </button>
+            <button
+              type="button"
+              className={`ap-preset-btn ${filters.dateFrom === "2023-01-01" && filters.dateTo === "2023-12-31" ? "active" : ""}`}
+              onClick={() => setPreset("2023-01-01", "2023-12-31")}
+            >
+              2023 Sittings
             </button>
           </div>
           <div className="ap-filter-row">
@@ -787,24 +788,28 @@ export function MPActivityProfile({
               id="ap-date-from"
               type="date"
               value={pendingFilters.dateFrom}
-              onChange={(e) => handleDateFromChange(e.target.value)}
+              onChange={(e) => updateDateFrom(e.target.value)}
             />
             <label htmlFor="ap-date-to">To</label>
             <input
               id="ap-date-to"
               type="date"
               value={pendingFilters.dateTo}
-              onChange={(e) => handleDateToChange(e.target.value)}
+              onChange={(e) => updateDateTo(e.target.value)}
             />
           </div>
           <div className="ap-filter-row">
-            <label htmlFor="ap-session">Parliament / Session</label>
+            <label htmlFor="ap-session">Session</label>
             <input
               id="ap-session"
               type="text"
               placeholder="e.g. 9th Parliament 4th Session"
               value={pendingFilters.session}
-              onChange={(e) => handleSessionChange(e.target.value)}
+              onChange={(e) => {
+                const s = e.target.value;
+                setPendingFilters((f) => ({ ...f, session: s }));
+                setFilters((f) => ({ ...f, session: s }));
+              }}
             />
           </div>
           {dateRangeError && (
@@ -813,68 +818,12 @@ export function MPActivityProfile({
             </p>
           )}
           <div className="ap-filter-actions">
-            <button
-              className="button primary small-button"
-              onClick={applyFilters}
-              disabled={!!dateRangeError}
-            >
-              Apply Filter
-            </button>
             <button className="button small-button" onClick={clearFilters}>
-              Reset
+              Reset filters
             </button>
           </div>
         </div>
       </details>
-
-      {/* Active filter banner */}
-      {(filters.dateFrom || filters.dateTo || filters.session) && (
-        <div
-          className="ap-active-filter-banner"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "8px 12px",
-            background: "var(--green-soft)",
-            border: "1px solid var(--line)",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            fontSize: "12px",
-            color: "var(--green)",
-          }}
-        >
-          <CalendarDays size={15} />
-          <span>
-            Filtering records:{" "}
-            <strong>
-              {filters.dateFrom ? fmtDate(filters.dateFrom) : "Start"}
-            </strong>{" "}
-            to{" "}
-            <strong>
-              {filters.dateTo ? fmtDate(filters.dateTo) : "Present"}
-            </strong>
-            {filters.session ? ` (${filters.session})` : ""}
-          </span>
-          <button
-            type="button"
-            onClick={clearFilters}
-            style={{
-              marginLeft: "auto",
-              background: "none",
-              border: "none",
-              color: "var(--muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              fontSize: "11px",
-            }}
-          >
-            <X size={13} /> Reset Filter
-          </button>
-        </div>
-      )}
 
       {/* Summary cards */}
       {summaryLoading ? (
