@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   Bookmark,
   BookOpen,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronRight,
@@ -33,7 +34,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { CivicApi, DEMO_WORKSPACE, loadWorkspace } from "./api";
+import { CivicApi, DEMO_WORKSPACE, loadWorkspace, LOCAL_ATTENDANCE } from "./api";
 import type { Workspace } from "./api";
 import type { ChatResponse, Commitment, MP, Speech } from "./types";
 import { MPActivityProfile } from "./MPActivityProfile";
@@ -339,6 +340,9 @@ function WorkspaceApp() {
   const [topic, setTopic] = useState(""); // empty = "All topics" sentinel
   const [status, setStatus] = useState(""); // empty = "All statuses" sentinel
   const [sort, setSort] = useState("newest");
+  const [mpsDateFrom, setMpsDateFrom] = useState("");
+  const [mpsDateTo, setMpsDateTo] = useState("");
+  const [mpsActiveOnly, setMpsActiveOnly] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobile, setMobile] = useState(
     () => matchMedia("(max-width: 850px)").matches,
@@ -568,9 +572,26 @@ function WorkspaceApp() {
       matches(c.title, c.sponsor_name, c.category, c.original_quote) &&
       (!status || c.current_status === status),
   );
-  const people = (data?.mps || []).filter((m) =>
-    matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district),
-  );
+  const people = (data?.mps || []).filter((m) => {
+    const textMatch = matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district);
+    if (!textMatch) return false;
+    if (mpsActiveOnly && (mpsDateFrom || mpsDateTo)) {
+      const hasSpeech = (data?.speeches || []).some(
+        (s) =>
+          s.speaker_id === m.id &&
+          (!mpsDateFrom || s.sitting_date >= mpsDateFrom) &&
+          (!mpsDateTo || s.sitting_date <= mpsDateTo),
+      );
+      const hasAtt = (LOCAL_ATTENDANCE || []).some(
+        (a) =>
+          a.mp_id === m.id &&
+          (!mpsDateFrom || a.sitting_date >= mpsDateFrom) &&
+          (!mpsDateTo || a.sitting_date <= mpsDateTo),
+      );
+      return hasSpeech || hasAtt;
+    }
+    return true;
+  });
   const timelines = (data?.timelines || []).filter((t) =>
     matches(t.title, t.topic, t.description),
   );
@@ -704,6 +725,20 @@ function WorkspaceApp() {
     );
   }
   function renderPerson(mp: MP) {
+    const dateFilterActive = Boolean(mpsDateFrom || mpsDateTo);
+    const speechesInRange = (data?.speeches || []).filter(
+      (s) =>
+        s.speaker_id === mp.id &&
+        (!mpsDateFrom || s.sitting_date >= mpsDateFrom) &&
+        (!mpsDateTo || s.sitting_date <= mpsDateTo),
+    );
+    const attendanceInRange = (LOCAL_ATTENDANCE || []).filter(
+      (a) =>
+        a.mp_id === mp.id &&
+        (!mpsDateFrom || a.sitting_date >= mpsDateFrom) &&
+        (!mpsDateTo || a.sitting_date <= mpsDateTo),
+    );
+
     return (
       <article key={mp.id} className="person-card">
         <div className="card-top">
@@ -714,6 +749,38 @@ function WorkspaceApp() {
           <h3>{mp.name}</h3>
         </button>
         <p>{mp.party}</p>
+        {dateFilterActive ? (
+          <div
+            style={{
+              margin: "6px 0",
+              padding: "6px 9px",
+              background: "var(--subtle)",
+              borderRadius: "5px",
+              fontSize: "11px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "3px",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <span style={{ color: "var(--green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+              <CalendarDays size={12} /> In Selected Range:
+            </span>
+            <span style={{ color: "var(--ink)" }}>
+              <strong>{speechesInRange.length}</strong> speech{speechesInRange.length === 1 ? "" : "es"} · <strong>{attendanceInRange.length}</strong> sitting{attendanceInRange.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        ) : (
+          <div
+            style={{
+              margin: "6px 0",
+              fontSize: "11px",
+              color: "var(--muted)",
+            }}
+          >
+            {mp.total_speeches ? `${mp.total_speeches} speeches recorded` : "Member of Parliament"}
+          </div>
+        )}
         <div className="profile-foot">
           <span>{mp.district}</span>
           <button className="text-link" onClick={() => open("mp", mp.id)}>
@@ -1253,16 +1320,115 @@ function WorkspaceApp() {
                 )}
                 {page === "mps" && (
                   <>
-                    <div className="filter-bar">
+                    <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", justifyContent: "space-between" }}>
                       <span className="result-count">
                         {people.length} {t.mps.desc}
                       </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>
+                          <CalendarDays size={14} /> Filter by Date:
+                        </span>
+                        <input
+                          type="date"
+                          aria-label="Filter members from date"
+                          value={mpsDateFrom}
+                          onChange={(e) => setMpsDateFrom(e.target.value)}
+                          style={{ fontSize: "11px", padding: "5px 8px", borderRadius: "5px", border: "1px solid var(--line)", background: "var(--surface)" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>to</span>
+                        <input
+                          type="date"
+                          aria-label="Filter members to date"
+                          value={mpsDateTo}
+                          onChange={(e) => setMpsDateTo(e.target.value)}
+                          style={{ fontSize: "11px", padding: "5px 8px", borderRadius: "5px", border: "1px solid var(--line)", background: "var(--surface)" }}
+                        />
+                        <button
+                          type="button"
+                          className="button small-button"
+                          style={{ fontSize: "11px", padding: "4px 8px" }}
+                          onClick={() => {
+                            setMpsDateFrom("2024-01-01");
+                            setMpsDateTo("2024-12-31");
+                          }}
+                        >
+                          2024 Sessions
+                        </button>
+                        {(mpsDateFrom || mpsDateTo) && (
+                          <button
+                            type="button"
+                            className="button small-button"
+                            style={{ fontSize: "11px", padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            onClick={() => {
+                              setMpsDateFrom("");
+                              setMpsDateTo("");
+                              setMpsActiveOnly(false);
+                            }}
+                          >
+                            <X size={12} /> Clear
+                          </button>
+                        )}
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--muted)", cursor: "pointer", marginLeft: "4px" }}>
+                          <input
+                            type="checkbox"
+                            checked={mpsActiveOnly}
+                            onChange={(e) => setMpsActiveOnly(e.target.checked)}
+                          />
+                          Only active in range
+                        </label>
+                      </div>
                     </div>
+                    {(mpsDateFrom || mpsDateTo) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 14px",
+                          background: "var(--green-soft)",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          color: "var(--green)",
+                          marginBottom: "16px",
+                          border: "1px solid var(--line)",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <CalendarDays size={14} />
+                          Showing member records for period: <strong>{mpsDateFrom || "Start"}</strong> to <strong>{mpsDateTo || "Present"}</strong>
+                          {mpsActiveOnly ? " (showing active members only)" : " (all members displayed with period activity)"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMpsDateFrom("");
+                            setMpsDateTo("");
+                            setMpsActiveOnly(false);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--muted)",
+                            cursor: "pointer",
+                            fontSize: "11px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "3px",
+                          }}
+                        >
+                          <X size={12} /> Reset date
+                        </button>
+                      </div>
+                    )}
                     <div className="card-grid">
                       {people.map((m) => renderPerson(m))}
                     </div>
                     {!people.length && (
-                      <Empty>{t.mps.noMpsFound}</Empty>
+                      <Empty>
+                        {mpsActiveOnly
+                          ? `No members recorded parliamentary activity between ${mpsDateFrom || "start"} and ${mpsDateTo || "present"}. Try unchecking "Only active in range" or clearing dates.`
+                          : t.mps.noMpsFound}
+                      </Empty>
                     )}
                   </>
                 )}
@@ -1762,6 +1928,7 @@ function WorkspaceApp() {
             {selectedMP && (
               <MPActivityProfile
                 mp={selectedMP}
+                initialFilters={{ dateFrom: mpsDateFrom, dateTo: mpsDateTo }}
                 onClose={closeDetail}
                 onOpenSpeech={(speechId) => open("speech", speechId)}
               />

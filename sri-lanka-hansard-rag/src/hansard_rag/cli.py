@@ -63,6 +63,12 @@ async def run_download(
         updated = await downloader.download_all(docs, force=force, limit=limit)
         success = [d for d in updated if d.download_status in ("downloaded", "skipped")]
         failed = [d for d in updated if d.download_status == "failed"]
+        for u in updated:
+            manifest[u.document_id] = u
+        with open(discovery.manifest_path, "w", encoding="utf-8") as f:
+            for d in manifest.values():
+                f.write(d.model_dump_json() + "\n")
+
         print(f"\n[DOWNLOAD] Completed. Processed: {len(updated)} | Valid: {len(success)} | Failed: {len(failed)}")
         return updated
 
@@ -78,6 +84,13 @@ def run_extract(
 
     if document_id:
         docs = [d for d in docs if d.document_id == document_id]
+
+    downloader = HansardDownloader()
+    for d in docs:
+        dest = downloader.get_destination_path(d)
+        if dest.exists() and not d.local_pdf_path:
+            d.local_pdf_path = str(dest)
+            d.download_status = "downloaded"
 
     # Only process downloaded or skipped docs
     ready_docs = [d for d in docs if d.local_pdf_path and Path(d.local_pdf_path).exists()]
@@ -112,6 +125,13 @@ def run_separate_languages(
 
     if document_id:
         docs = [d for d in docs if d.document_id == document_id]
+
+    downloader = HansardDownloader()
+    for d in docs:
+        dest = downloader.get_destination_path(d)
+        if dest.exists() and not d.local_pdf_path:
+            d.local_pdf_path = str(dest)
+            d.download_status = "downloaded"
 
     ready_docs = [d for d in docs if d.local_pdf_path and Path(d.local_pdf_path).exists()]
     if limit:
@@ -154,6 +174,13 @@ def run_chunk(
 
     if document_id:
         docs = [d for d in docs if d.document_id == document_id]
+
+    downloader = HansardDownloader()
+    for d in docs:
+        dest = downloader.get_destination_path(d)
+        if dest.exists() and not d.local_pdf_path:
+            d.local_pdf_path = str(dest)
+            d.download_status = "downloaded"
 
     ready_docs = [d for d in docs if d.local_pdf_path and Path(d.local_pdf_path).exists()]
     if limit:

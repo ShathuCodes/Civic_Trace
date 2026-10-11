@@ -190,13 +190,23 @@ class HansardVectorStore:
 
         query_filter = qmodels.Filter(must=conditions) if conditions else None
 
-        hits = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            query_filter=query_filter,
-            limit=top_k,
-            score_threshold=score_threshold,
-        )
+        if hasattr(self.client, "query_points"):
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=top_k,
+                score_threshold=score_threshold,
+            )
+            hits = response.points
+        else:
+            hits = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
+                query_filter=query_filter,
+                limit=top_k,
+                score_threshold=score_threshold,
+            )
 
         results = []
         for hit in hits:
