@@ -43,6 +43,7 @@ import { SUPPORTED_LANGUAGES } from "./i18n/types";
 import { useVoiceInput } from "./hooks/useVoiceInput";
 import { useSpeakText } from "./hooks/useSpeakText";
 import { EvidenceTrailView } from "./EvidenceTrailView";
+import { ElectionBroadcastHero } from "./ElectionBroadcastHero";
 
 const STANDALONE_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
@@ -355,7 +356,7 @@ function WorkspaceApp() {
   }, []);
   const [help, setHelp] = useState(false);
   const [theme, setTheme] = useState(() =>
-    readLocal<string>("ct-theme", "light") === "dark" ? "dark" : "light",
+    readLocal<string>("ct-theme", "dark") === "light" ? "light" : "dark",
   );
   const [saved, setSaved] = useState<string[]>(() => {
     const values = readLocal<unknown>("ct-saved", []);
@@ -1149,6 +1150,11 @@ function WorkspaceApp() {
               <div className="page-content" key={page}>
                 {page === "overview" && (
                   <>
+                    <ElectionBroadcastHero
+                      mps={data.mps}
+                      onOpenMP={(mpId) => open("mp", mpId)}
+                      onExploreCompare={() => navigate("compare")}
+                    />
                     <div className="stats-strip">
                       {[
                         {
@@ -1548,6 +1554,111 @@ function WorkspaceApp() {
                       </Empty>
                     ) : (
                       <>
+                        {selectedLeaders.length >= 2 && (() => {
+                          const leaderA = selectedLeaders[0];
+                          const leaderB = selectedLeaders[1];
+                          const totalSpeeches = (leaderA.total_speeches || 1) + (leaderB.total_speeches || 1);
+                          const shareA = Math.round(((leaderA.total_speeches || 1) / totalSpeeches) * 100);
+                          const shareB = 100 - shareA;
+                          const diff = (leaderA.total_speeches || 0) - (leaderB.total_speeches || 0);
+
+                          return (
+                            <div className="broadcast-card" style={{ marginBottom: 24, padding: "24px 28px" }}>
+                              <div className="broadcast-card-top-tag">
+                                <span className="live-bracket-tag">[ HEAD-TO-HEAD PARLIAMENTARY RECORD ]</span>
+                                <div className="broadcast-live-badge">
+                                  <span className="broadcast-pulse-dot" />
+                                  <span>LIVE MATCHUP</span>
+                                </div>
+                              </div>
+                              <div className="matchup-stage" style={{ marginBottom: 20 }}>
+                                <div
+                                  className="candidate-column candidate-left"
+                                  onClick={() => open("mp", leaderA.id)}
+                                  style={{ cursor: "pointer" }}
+                                  title={`View profile for ${leaderA.name}`}
+                                >
+                                  <div className="candidate-avatar-wrapper ring-red">
+                                    <div className="candidate-avatar">
+                                      <span className="candidate-initials">{initials(leaderA.name)}</span>
+                                    </div>
+                                    <span className="candidate-badge-party red-bg">{leaderA.party_code}</span>
+                                  </div>
+                                  <div className="candidate-details">
+                                    <h3 className="candidate-name">{leaderA.name}</h3>
+                                    <span className="candidate-role-sub">{leaderA.current_role || leaderA.party}</span>
+                                    <div className="candidate-metric red-metric">
+                                      <span className="metric-number">{leaderA.attendance_rate}%</span>
+                                      <span className="metric-label">ATTENDANCE</span>
+                                    </div>
+                                    <div className="candidate-votes-total">
+                                      <strong>{leaderA.total_speeches}</strong>
+                                      <span>RECORDED SPEECHES</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="matchup-center-nexus">
+                                  <div className="vs-neon-orb">
+                                    <span>VS</span>
+                                  </div>
+                                  <div className="lead-pill-badge">
+                                    <span className="lead-indicator-dot" />
+                                    <span>
+                                      {diff >= 0
+                                        ? `${leaderA.party_code} LEAD · +${diff} SPEECHES`
+                                        : `${leaderB.party_code} LEAD · +${Math.abs(diff)} SPEECHES`}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div
+                                  className="candidate-column candidate-right"
+                                  onClick={() => open("mp", leaderB.id)}
+                                  style={{ cursor: "pointer" }}
+                                  title={`View profile for ${leaderB.name}`}
+                                >
+                                  <div className="candidate-details align-right">
+                                    <h3 className="candidate-name">{leaderB.name}</h3>
+                                    <span className="candidate-role-sub">{leaderB.current_role || leaderB.party}</span>
+                                    <div className="candidate-metric blue-metric">
+                                      <span className="metric-number">{leaderB.attendance_rate}%</span>
+                                      <span className="metric-label">ATTENDANCE</span>
+                                    </div>
+                                    <div className="candidate-votes-total align-right">
+                                      <strong>{leaderB.total_speeches}</strong>
+                                      <span>RECORDED SPEECHES</span>
+                                    </div>
+                                  </div>
+                                  <div className="candidate-avatar-wrapper ring-blue">
+                                    <div className="candidate-avatar">
+                                      <span className="candidate-initials">{initials(leaderB.name)}</span>
+                                    </div>
+                                    <span className="candidate-badge-party blue-bg">{leaderB.party_code}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="broadcast-progress-container">
+                                <div className="progress-top-labels">
+                                  <span><strong className="neon-red-text">{leaderA.party_code}</strong> {leaderA.total_speeches} speeches</span>
+                                  <span className="label-center-meta">SPEECH VOLUME PROPORTION</span>
+                                  <span><strong className="neon-blue-text">{leaderB.party_code}</strong> {leaderB.total_speeches} speeches</span>
+                                </div>
+                                <div className="progress-dual-bar">
+                                  <div className="bar-segment bar-segment-red" style={{ width: `${shareA}%` }} />
+                                  <div className="bar-segment bar-segment-divider" style={{ width: "2%" }} />
+                                  <div className="bar-segment bar-segment-blue" style={{ width: `${shareB}%` }} />
+                                </div>
+                                <div className="progress-bottom-labels">
+                                  <span className="neon-red-text">{shareA}%</span>
+                                  <span className="muted-share">{leaderA.district} vs {leaderB.district}</span>
+                                  <span className="neon-blue-text">{shareB}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="inline-note">
                           {t.compare.noStance}
                         </div>
