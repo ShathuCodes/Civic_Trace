@@ -280,6 +280,7 @@ export interface TranslationDictionary {
     errorDesc: string;
     reloadApp: string;
     exploreSample: string;
+    noRecordsFound: string;
   };
   voice: {
     micBtn: string;

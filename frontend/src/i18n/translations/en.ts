@@ -266,7 +266,8 @@ export const en: TranslationDictionary = {
     errorTitle: 'Data service unavailable',
     errorDesc: 'We couldn’t reach a compatible data service. Start the backend or retry the connection.',
     reloadApp: 'Reload application',
-    exploreSample: 'Explore labelled sample data'
+    exploreSample: 'Explore labelled sample data',
+    noRecordsFound: 'No records found'
   },
   voice: {
     micBtn: 'Speak your search',

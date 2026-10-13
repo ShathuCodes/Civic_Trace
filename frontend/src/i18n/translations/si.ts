@@ -266,7 +266,8 @@ export const si: TranslationDictionary = {
     errorTitle: 'දත්ත සේවාව ලබාගත නොහැක',
     errorDesc: 'ගැළපෙන දත්ත සේවාවක් හා සම්බන්ධ විය නොහැකි විය. පසුපෙළ ආරම්භ කරන්න හෝ නැවත උත්සාහ කරන්න.',
     reloadApp: 'යෙදුම නැවත පූරණය කරන්න',
-    exploreSample: 'නියැදි දත්ත ගවේෂණය කරන්න'
+    exploreSample: 'නියැදි දත්ත ගවේෂණය කරන්න',
+    noRecordsFound: 'වාර්තා හමු නොවීය'
   },
   voice: {
     micBtn: 'හඬ මඟින් සොයන්න',
