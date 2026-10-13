@@ -38,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { CivicApi } from "./api";
+import { useLanguage } from "./i18n/LanguageContext";
 import type {
   MP,
   ActivitySummary,
@@ -79,10 +80,10 @@ function safeUrl(value: string | null | undefined) {
 }
 
 // Status label text and accessible symbol (not colour-only)
-function statusLabel(status: string): { label: string; symbol: string; className: string } {
-  if (status === "present") return { label: "Present", symbol: "✓", className: "att-present" };
-  if (status === "absent") return { label: "Absent", symbol: "✗", className: "att-absent" };
-  if (status === "missing_data") return { label: "Missing data", symbol: "?", className: "att-missing" };
+function statusLabel(status: string, t?: any): { label: string; symbol: string; className: string } {
+  if (status === "present") return { label: t?.mps?.present || "Present", symbol: "✓", className: "att-present" };
+  if (status === "absent") return { label: t?.mps?.absent || "Absent", symbol: "✗", className: "att-absent" };
+  if (status === "missing_data") return { label: t?.mps?.missingData || "Missing data", symbol: "?", className: "att-missing" };
   // verbatim official category
   return { label: status, symbol: "·", className: "att-other" };
 }
@@ -92,7 +93,8 @@ function statusLabel(status: string): { label: string; symbol: string; className
 // ---------------------------------------------------------------------------
 
 function AttendanceBadge({ status }: { status: string }) {
-  const { label, symbol, className } = statusLabel(status);
+  const { t } = useLanguage();
+  const { label, symbol, className } = statusLabel(status, t);
   return (
     <span className={`att-badge ${className}`} aria-label={label} title={label}>
       <span aria-hidden="true">{symbol}</span> {label}
@@ -588,6 +590,7 @@ export function MPActivityProfile({
   onClose,
   onOpenSpeech,
 }: MPActivityProfileProps) {
+  const { t } = useLanguage();
   const [filters, setFilters] = useState<ProfileFilters>({
     dateFrom: initialFilters.dateFrom ?? "",
     dateTo: initialFilters.dateTo ?? "",
@@ -909,20 +912,20 @@ export function MPActivityProfile({
                   <div className="ap-card-stats">
                     <div className="ap-stat">
                       <strong>{att.present}</strong>
-                      <span>Present</span>
+                      <span>{t.mps.present}</span>
                     </div>
                     <div className="ap-stat">
                       <strong>{att.absent}</strong>
-                      <span>Absent</span>
+                      <span>{t.mps.absent}</span>
                     </div>
                     <div className="ap-stat ap-stat-missing">
                       <strong>{att.missing_data}</strong>
-                      <span>Missing records</span>
+                      <span>{t.mps.missingData}</span>
                     </div>
                     {att.eligible_sitting_days !== null && (
                       <div className="ap-stat">
                         <strong>{att.eligible_sitting_days}</strong>
-                        <span>Eligible days</span>
+                        <span>{t.mps.eligibleSittings}</span>
                       </div>
                     )}
                   </div>
@@ -1013,7 +1016,7 @@ export function MPActivityProfile({
           id="tab-attendance"
           aria-controls="panel-attendance"
         >
-          <CalendarDays size={15} /> Attendance
+          <CalendarDays size={15} /> {t.mps.tabAttendance}
           {att?.available && att.present + att.absent + att.missing_data > 0 && (
             <span className="ap-tab-count">
               {att.present + att.absent + att.missing_data}
@@ -1028,7 +1031,7 @@ export function MPActivityProfile({
           id="tab-speeches"
           aria-controls="panel-speeches"
         >
-          <FileText size={15} /> Speeches
+          <FileText size={15} /> {t.mps.tabSpeeches}
           {spe && spe.count > 0 && (
             <span className="ap-tab-count">{spe.count}</span>
           )}

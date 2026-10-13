@@ -174,6 +174,7 @@ function initials(name: string) {
     .toUpperCase();
 }
 function SourceLink({ url, children }: { url?: string; children: ReactNode }) {
+  const { t } = useLanguage();
   const href = safeUrl(url);
   return href ? (
     <a
@@ -186,20 +187,21 @@ function SourceLink({ url, children }: { url?: string; children: ReactNode }) {
       <ArrowUpRight size={14} />
     </a>
   ) : (
-    <span className="muted">Source link not supplied</span>
+    <span className="muted">{t.common.sourceNotSupplied}</span>
   );
 }
 function Empty({
-  title = "No records found",
+  title,
   children,
 }: {
   title?: string;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="empty">
       <Search size={25} />
-      <h3>{title}</h3>
+      <h3>{title || t.common.noRecordsFound}</h3>
       <p>{children}</p>
     </div>
   );
@@ -703,12 +705,12 @@ function WorkspaceApp() {
           >
             {c.current_status}
           </span>
-          <span className="muted small">Unreviewed assessment</span>
+          <span className="muted small">{t.commitments.unreviewedAssessment}</span>
         </div>
         <div className="card-divider" />
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <button className="text-link" onClick={() => open("commitment", c.id)}>
-            {c.timeline.length} linked events <ArrowRight size={15} />
+            {c.timeline.length} {t.commitments.linkedEvents} <ArrowRight size={15} />
           </button>
           <span className="dot">·</span>
           <button
@@ -765,10 +767,10 @@ function WorkspaceApp() {
             }}
           >
             <span style={{ color: "var(--green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
-              <CalendarDays size={12} /> In Selected Range:
+              <CalendarDays size={12} /> {t.nav.inSelectedRange}:
             </span>
             <span style={{ color: "var(--ink)" }}>
-              <strong>{speechesInRange.length}</strong> speech{speechesInRange.length === 1 ? "" : "es"} · <strong>{attendanceInRange.length}</strong> sitting{attendanceInRange.length === 1 ? "" : "s"}
+              <strong>{speechesInRange.length}</strong> {t.speeches.totalSpeeches.toLowerCase()} · <strong>{attendanceInRange.length}</strong> {t.nav.attendance.toLowerCase()}
             </span>
           </div>
         ) : (
@@ -779,13 +781,13 @@ function WorkspaceApp() {
               color: "var(--muted)",
             }}
           >
-            {mp.total_speeches ? `${mp.total_speeches} speeches recorded` : "Member of Parliament"}
+            {mp.total_speeches ? `${mp.total_speeches} ${t.nav.speechesRecorded}` : t.nav.memberOfParliament}
           </div>
         )}
         <div className="profile-foot">
           <span>{mp.district}</span>
           <button className="text-link" onClick={() => open("mp", mp.id)}>
-            View profile <ArrowRight size={14} />
+            {t.nav.viewProfile} <ArrowRight size={14} />
           </button>
         </div>
       </article>
@@ -919,21 +921,21 @@ function WorkspaceApp() {
             <span>
               <strong>
                 {backendOffline
-                  ? "Offline Sample Dataset"
+                  ? t.nav.offlineDataset
                   : data?.meta.mode === "mongodb"
                     ? t.overview.connectedDataset
                     : t.overview.demoWorkspace}
               </strong>
               <span className="notice-detail">
                 {backendOffline
-                  ? " · FastAPI backend not running on port 8000"
+                  ? ` · ${t.nav.offlineBackendPort}`
                   : data?.meta.mode === "mongodb"
                     ? ` · ${t.overview.connectedNotice}`
                     : ` · ${t.overview.demoNotice}`}
               </span>
               {!backendOffline && data?.meta?.gemini_connected && (
                 <span className="badge badge-verified" style={{ marginLeft: 8 }}>
-                  <Sparkles size={12} /> Gemini AI Ready
+                  <Sparkles size={12} /> {t.nav.geminiReady}
                 </span>
               )}
             </span>
@@ -943,7 +945,7 @@ function WorkspaceApp() {
                 style={{ marginLeft: "auto" }}
                 onClick={() => setAttempt((a) => a + 1)}
               >
-                Connect to Backend
+                {t.nav.connectBackend}
               </button>
             ) : (
               <button onClick={() => setHelp(true)}>
@@ -1047,10 +1049,10 @@ function WorkspaceApp() {
                       setAiModalOpen(true);
                       if (query.trim()) runAiQuery(query);
                     }}
-                    title="Ask Parliament AI Assistant"
+                    title={t.nav.askAI}
                   >
                     <Sparkles size={15} />
-                    <span>Ask AI</span>
+                    <span>{t.nav.askAI}</span>
                   </button>
                 </form>
 
@@ -1193,7 +1195,7 @@ function WorkspaceApp() {
                       <section className="panel">
                         <div className="section-head">
                           <div>
-                            <span className="eyebrow">FROM THE CHAMBER</span>
+                            <span className="eyebrow">{t.nav.fromTheChamber}</span>
                             <h2>{t.overview.recentHeading}</h2>
                           </div>
                           <button
@@ -1209,7 +1211,7 @@ function WorkspaceApp() {
                         )}
                       </section>
                       <aside className="issue-panel">
-                        <span className="eyebrow">FOLLOW AN ISSUE</span>
+                        <span className="eyebrow">{t.nav.followAnIssue}</span>
                         <h2>{t.overview.recentSub}</h2>
                         <p>{t.overview.featuredCommitmentsSub}</p>
                         {data.timelines.map((tl, i) => (
@@ -1227,16 +1229,15 @@ function WorkspaceApp() {
                           </button>
                         ))}
                         <div className="issue-foot">
-                          <span className="tiny-rule" /> Context connects
-                          records.
+                          <span className="tiny-rule" /> {t.nav.contextConnects}
                           <br />
-                          It does not establish causation.
+                          {t.nav.contextNotCausation}
                         </div>
                       </aside>
                     </div>
                     <div className="section-head standalone">
                       <div>
-                        <span className="eyebrow">FROM WORDS TO FOLLOW-UP</span>
+                        <span className="eyebrow">{t.nav.fromWordsToFollowUp}</span>
                         <h2>{t.overview.featuredCommitments}</h2>
                       </div>
                       <button
@@ -1332,7 +1333,7 @@ function WorkspaceApp() {
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>
-                          <CalendarDays size={14} /> Filter by Date:
+                          <CalendarDays size={14} /> {t.nav.filterByDate}:
                         </span>
                         <input
                           type="date"
@@ -1358,7 +1359,7 @@ function WorkspaceApp() {
                             setMpsDateTo("2024-12-31");
                           }}
                         >
-                          2024 Sessions
+                          {t.nav.sessionsShort}
                         </button>
                         {(mpsDateFrom || mpsDateTo) && (
                           <button
@@ -1371,7 +1372,7 @@ function WorkspaceApp() {
                               setMpsActiveOnly(false);
                             }}
                           >
-                            <X size={12} /> Clear
+                            <X size={12} /> {t.nav.clearDate}
                           </button>
                         )}
                         <label style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--muted)", cursor: "pointer", marginLeft: "4px" }}>
@@ -1380,7 +1381,7 @@ function WorkspaceApp() {
                             checked={mpsActiveOnly}
                             onChange={(e) => setMpsActiveOnly(e.target.checked)}
                           />
-                          Only active in range
+                          {t.nav.onlyActiveInRange}
                         </label>
                       </div>
                     </div>
@@ -1401,8 +1402,7 @@ function WorkspaceApp() {
                       >
                         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <CalendarDays size={14} />
-                          Showing member records for period: <strong>{mpsDateFrom || "Start"}</strong> to <strong>{mpsDateTo || "Present"}</strong>
-                          {mpsActiveOnly ? " (showing active members only)" : " (all members displayed with period activity)"}
+                          <strong>{mpsDateFrom || "2024-01-01"}</strong> – <strong>{mpsDateTo || "2024-12-31"}</strong>
                         </span>
                         <button
                           type="button"
@@ -1422,7 +1422,7 @@ function WorkspaceApp() {
                             gap: "3px",
                           }}
                         >
-                          <X size={12} /> Reset date
+                          <X size={12} /> {t.nav.clearDate}
                         </button>
                       </div>
                     )}
@@ -1518,10 +1518,10 @@ function WorkspaceApp() {
                           return (
                             <div className="broadcast-card" style={{ marginBottom: 24, padding: "24px 28px" }}>
                               <div className="broadcast-card-top-tag">
-                                <span className="live-bracket-tag">[ HEAD-TO-HEAD PARLIAMENTARY RECORD ]</span>
+                                <span className="live-bracket-tag">{t.nav.headToHead}</span>
                                 <div className="broadcast-live-badge">
                                   <span className="broadcast-pulse-dot" />
-                                  <span>LIVE MATCHUP</span>
+                                  <span>{t.nav.liveMatchup}</span>
                                 </div>
                               </div>
                               <div className="matchup-stage" style={{ marginBottom: 20 }}>
@@ -1542,11 +1542,11 @@ function WorkspaceApp() {
                                     <span className="candidate-role-sub">{leaderA.current_role || leaderA.party}</span>
                                     <div className="candidate-metric red-metric">
                                       <span className="metric-number">{leaderA.attendance_rate}%</span>
-                                      <span className="metric-label">ATTENDANCE</span>
+                                      <span className="metric-label">{t.nav.attendance}</span>
                                     </div>
                                     <div className="candidate-votes-total">
                                       <strong>{leaderA.total_speeches}</strong>
-                                      <span>RECORDED SPEECHES</span>
+                                      <span>{t.nav.recordedSpeeches}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1576,11 +1576,11 @@ function WorkspaceApp() {
                                     <span className="candidate-role-sub">{leaderB.current_role || leaderB.party}</span>
                                     <div className="candidate-metric blue-metric">
                                       <span className="metric-number">{leaderB.attendance_rate}%</span>
-                                      <span className="metric-label">ATTENDANCE</span>
+                                      <span className="metric-label">{t.nav.attendance}</span>
                                     </div>
                                     <div className="candidate-votes-total align-right">
                                       <strong>{leaderB.total_speeches}</strong>
-                                      <span>RECORDED SPEECHES</span>
+                                      <span>{t.nav.recordedSpeeches}</span>
                                     </div>
                                   </div>
                                   <div className="candidate-avatar-wrapper ring-blue">
@@ -1595,7 +1595,7 @@ function WorkspaceApp() {
                               <div className="broadcast-progress-container">
                                 <div className="progress-top-labels">
                                   <span><strong className="neon-red-text">{leaderA.party_code}</strong> {leaderA.total_speeches} speeches</span>
-                                  <span className="label-center-meta">SPEECH VOLUME PROPORTION</span>
+                                  <span className="label-center-meta">{t.nav.speechVolumeProportion}</span>
                                   <span><strong className="neon-blue-text">{leaderB.party_code}</strong> {leaderB.total_speeches} speeches</span>
                                 </div>
                                 <div className="progress-dual-bar">
@@ -1717,7 +1717,7 @@ function WorkspaceApp() {
         </main>
       </div>
       {route.selection && data && (
-        <Dialog title="RECORD DETAILS" onClose={closeDetail} wide>
+        <Dialog title={t.nav.recordDetails} onClose={closeDetail} wide>
           <div className="detail-body">
             <div className="detail-tools">
               <span className="status neutral">
@@ -1751,7 +1751,7 @@ function WorkspaceApp() {
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(location.href);
-                      setToast("Record link copied");
+                      setToast(t.nav.recordLinkCopied);
                     } catch {
                       setToast(
                         "Copy the record link from your browser address bar",
@@ -1759,7 +1759,7 @@ function WorkspaceApp() {
                     }
                   }}
                 >
-                  Copy link
+                  {t.nav.copyLink}
                 </button>
               </div>
             </div>
@@ -1783,20 +1783,20 @@ function WorkspaceApp() {
                 <div className="source-box">
                   <FileText size={21} />
                   <div style={{ flex: 1 }}>
-                    <strong>Original parliamentary record (Hansard)</strong>
+                    <strong>{t.nav.officialHansardRecord}</strong>
                     <p>
                       {selectedSpeech.hansard_vol} · Pages {selectedSpeech.hansard_page}
                     </p>
                     <div className="source-box-actions">
                       <SourceLink url={selectedSpeech.hansard_pdf_url}>
-                        Open Official Hansard Link
+                        {t.nav.openOfficialHansard}
                       </SourceLink>
                       <button
                         type="button"
                         className="button small-button hansard-preview-btn"
                         onClick={() => setShowHansardPreview(!showHansardPreview)}
                       >
-                        {showHansardPreview ? "Hide Document Preview" : "Preview Hansard Document"}
+                        {showHansardPreview ? t.nav.hideHansardPreview : t.nav.previewHansard}
                       </button>
                       <button
                         type="button"
@@ -1808,20 +1808,20 @@ function WorkspaceApp() {
                       </button>
                     </div>
                   </div>
-                  <span className="muted small">Official Hansard Archive</span>
+                  <span className="muted small">{t.nav.officialArchive}</span>
                 </div>
 
                 {showHansardPreview && (
                   <div className="hansard-document-preview">
                     <div className="hansard-doc-head">
                       <div>
-                        <span className="hansard-seal">PARLIAMENT OF SRI LANKA</span>
+                        <span className="hansard-seal">{t.nav.originalHansardLabel}</span>
                         <h3>OFFICIAL REPORT (HANSARD)</h3>
                         <p className="hansard-doc-meta">
                           <strong>{selectedSpeech.hansard_vol}</strong> · Sitting Date: <strong>{date(selectedSpeech.sitting_date)}</strong> · Pages: <strong>{selectedSpeech.hansard_page}</strong>
                         </p>
                       </div>
-                      <span className="hansard-badge">Official Record</span>
+                      <span className="hansard-badge">{t.common.verified}</span>
                     </div>
                     <div className="hansard-doc-body">
                       <div className="hansard-speaker-tag">
@@ -1840,8 +1840,8 @@ function WorkspaceApp() {
                         </p>
                       </div>
                       <div className="hansard-footer-note">
-                        <span>Official Archive Citation: <code>{selectedSpeech.hansard_vol.replace(/\s+/g, '_')}_p{selectedSpeech.hansard_page}</code></span>
-                        <span className="muted">Note: Direct parliamentary PDF downloads depend on external parliament.lk server availability.</span>
+                        <span>{t.nav.officialArchiveCitation}: <code>{selectedSpeech.hansard_vol.replace(/\s+/g, '_')}_p{selectedSpeech.hansard_page}</code></span>
+                        <span className="muted">{t.nav.parliamentPdfNote}</span>
                       </div>
                     </div>
                   </div>
@@ -1859,9 +1859,7 @@ function WorkspaceApp() {
                   </select>
                 </div>
                 <p className="muted small">
-                  Timestamps and text are supplied records, not verified
-                  alignments. Links open the source recording; no simulated
-                  playback.
+                  {t.nav.timestampsNote}
                 </p>
                 <div className="speech-narration-bar">
                   <div className="narration-info">
@@ -1952,7 +1950,7 @@ function WorkspaceApp() {
                         <div>
                           {!translation && (
                             <span className="translation-note">
-                              Translation unavailable · Showing English
+                              {t.nav.translationUnavailable}
                             </span>
                           )}
                           <p lang={translation ? transcriptLang : "en"}>
@@ -1979,7 +1977,7 @@ function WorkspaceApp() {
                     );
                   })}
                   {!selectedSpeech.segments.length && (
-                    <Empty title="Transcript not available">
+                    <Empty title={t.nav.transcriptUnavailable}>
                       {t.speeches.noSpeechesDesc}
                     </Empty>
                   )}
@@ -2052,9 +2050,7 @@ function WorkspaceApp() {
                 <h2 className="detail-title">{selectedTimeline.title}</h2>
                 <p className="lead">{selectedTimeline.description}</p>
                 <div className="inline-note">
-                  Events show chronology, not a proven causal relationship. The
-                  dataset supplies reference text but no event-level source
-                  URLs.
+                  {t.nav.eventsShowChronology}
                 </div>
                 <div className="event-list">
                   {selectedTimeline.events.map((event, i) => (
@@ -2073,7 +2069,7 @@ function WorkspaceApp() {
                 </div>
                 <details className="indicator-details">
                   <summary>
-                    View supplied indicator data <ChevronDown size={16} />
+                    {t.nav.viewIndicatorData} <ChevronDown size={16} />
                   </summary>
                   <p className="muted small">
                     {t.timelines.verifiedCitation}
@@ -2117,8 +2113,8 @@ function WorkspaceApp() {
               !selectedCommitment &&
               !selectedMP &&
               !selectedTimeline && (
-                <Empty title="Record not found">
-                  This link is not available in the current dataset.
+                <Empty title={t.nav.recordNotFound}>
+                  {t.nav.recordNotFoundDesc}
                 </Empty>
               )}
           </div>
@@ -2134,48 +2130,35 @@ function WorkspaceApp() {
               {t.dialogs.aboutIntro}
             </h2>
             <p>{t.dialogs.aboutP1}</p>
-            <h3>What you&rsquo;re looking at</h3>
+            <h3>{t.overview.whatYoureLookingAt}</h3>
             <p>
               {data?.meta.mode === "mongodb"
                 ? t.dialogs.aboutP2
                 : t.dialogs.aboutP3}
             </p>
-            <h3>Our evidence rules</h3>
+            <h3>{t.overview.ourEvidenceRules}</h3>
             <ul className="method-list">
-              <li>
-                Open the original record and read the surrounding context.
-              </li>
-              <li>
-                A statement in Parliament is not proof that the statement is
-                true.
-              </li>
-              <li>Missing evidence does not mean a promise was broken.</li>
-              <li>
-                Policy outcomes can have many causes; chronology is not
-                attribution.
-              </li>
+              <li>{t.nav.readOriginalRecord}</li>
+              <li>{t.nav.statementNotProof}</li>
+              <li>{t.nav.missingEvidenceNote}</li>
+              <li>{t.nav.policyOutcomes}</li>
             </ul>
-            <h3>What is still being built</h3>
-            <p>
-              Reviewed source ingestion, claim-level citations, validated video
-              alignment, full interface translations, and grounded AI answers.
-              This patch does not claim these are live.
-            </p>
+            <h3>{t.nav.stillBeingBuilt}</h3>
+            <p>{t.nav.stillBeingBuiltDesc}</p>
             <p className="muted small">
-              Saved items stay in this browser. Dataset mode:{" "}
-              {data?.meta.mode || "not connected"}.
+              {t.nav.savedItemsNote} {data?.meta.mode || t.nav.datasetMode}.
               {data?.meta.loaded_at &&
-                ` Snapshot loaded ${new Date(data.meta.loaded_at).toLocaleString("en-GB")}.`}
+                ` ${t.nav.snapshotLoaded} ${new Date(data.meta.loaded_at).toLocaleString("en-GB")}.`}
             </p>
           </div>
         </Dialog>
       )}
       {aiModalOpen && (
-        <Dialog title="PARLIAMENT AI ASSISTANT" onClose={() => setAiModalOpen(false)} wide>
+        <Dialog title={t.nav.aiModalTitle} onClose={() => setAiModalOpen(false)} wide>
           <div className="ai-modal-content">
             <div className="ai-modal-intro">
               <p className="muted" style={{ margin: 0 }}>
-                Ask questions across Sri Lankan parliamentary Hansard records and policy commitments. Responses are grounded strictly in indexed records using Gemini 3.8 Flash & the Hansard RAG service.
+                {t.nav.aiModalDesc}
               </p>
             </div>
 
@@ -2198,13 +2181,13 @@ function WorkspaceApp() {
                 />
                 <button type="submit" className="button primary" disabled={aiLoading || !aiQuestion.trim()}>
                   {aiLoading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
-                  <span>{aiLoading ? "Thinking..." : "Ask"}</span>
+                  <span>{aiLoading ? t.nav.aiThinking : t.nav.aiAsk}</span>
                 </button>
               </div>
             </form>
 
             <div className="ai-quick-prompts">
-              <span className="eyebrow">Suggested Inquiries</span>
+              <span className="eyebrow">{t.nav.aiSuggestedInquiries}</span>
               <div className="choice-list">
                 {[
                   "What did Dr. Harsha de Silva say about VAT exemptions?",
@@ -2240,7 +2223,7 @@ function WorkspaceApp() {
                 <div className="ai-result-head">
                   <div className="ai-badge-group">
                     <span className="badge badge-verified">
-                      <Sparkles size={13} /> {aiResult.confidence_score > 0 ? `${aiResult.confidence_score}% Grounded` : "Extractive Record"}
+                      <Sparkles size={13} /> {aiResult.confidence_score > 0 ? `${aiResult.confidence_score}% ${t.nav.aiGrounded}` : t.nav.aiExtractiveRecord}
                     </span>
                     <span className="badge">
                       {aiResult.citations.length} Citation{aiResult.citations.length === 1 ? "" : "s"}
@@ -2264,7 +2247,7 @@ function WorkspaceApp() {
 
                 {aiResult.citations.length > 0 && (
                   <div className="ai-citations-section">
-                    <span className="eyebrow">Indexed Hansard Citations</span>
+                    <span className="eyebrow">{t.nav.aiCitations}</span>
                     <div className="ai-citations-list">
                       {aiResult.citations.map((c, idx) => (
                         <div key={idx} className="ai-citation-item">
@@ -2282,7 +2265,7 @@ function WorkspaceApp() {
                                   open("speech", c.speech_id!);
                                 }}
                               >
-                                View Speech
+                                {t.nav.viewSpeech}
                               </button>
                             )}
                             {c.url && (
@@ -2292,7 +2275,7 @@ function WorkspaceApp() {
                                 rel="noopener noreferrer"
                                 className="source-link"
                               >
-                                Hansard PDF <ArrowUpRight size={13} />
+                                {t.nav.hansardPdf} <ArrowUpRight size={13} />
                               </a>
                             )}
                           </div>
