@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   Bookmark,
   BookOpen,
-  CalendarDays,
   Check,
   ChevronDown,
   ChevronRight,
@@ -34,7 +33,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { CivicApi, DEMO_WORKSPACE, loadWorkspace, LOCAL_ATTENDANCE } from "./api";
+import { CivicApi, DEMO_WORKSPACE, loadWorkspace } from "./api";
 import type { Workspace } from "./api";
 import type { ChatResponse, Commitment, MP, Speech } from "./types";
 import { MPActivityProfile } from "./MPActivityProfile";
@@ -343,9 +342,10 @@ function WorkspaceApp() {
   const [topic, setTopic] = useState(""); // empty = "All topics" sentinel
   const [status, setStatus] = useState(""); // empty = "All statuses" sentinel
   const [sort, setSort] = useState("newest");
-  const [mpsDateFrom, setMpsDateFrom] = useState("");
-  const [mpsDateTo, setMpsDateTo] = useState("");
-  const [mpsActiveOnly, setMpsActiveOnly] = useState(false);
+  const [mpParty, setMpParty] = useState("");
+  const [mpDistrict, setMpDistrict] = useState("");
+  const [mpDateFrom, setMpDateFrom] = useState("");
+  const [mpDateTo, setMpDateTo] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobile, setMobile] = useState(
     () => matchMedia("(max-width: 850px)").matches,
@@ -575,26 +575,44 @@ function WorkspaceApp() {
       matches(c.title, c.sponsor_name, c.category, c.original_quote) &&
       (!status || c.current_status === status),
   );
-  const people = (data?.mps || []).filter((m) => {
-    const textMatch = matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district);
-    if (!textMatch) return false;
-    if (mpsActiveOnly && (mpsDateFrom || mpsDateTo)) {
-      const hasSpeech = (data?.speeches || []).some(
-        (s) =>
-          s.speaker_id === m.id &&
-          (!mpsDateFrom || s.sitting_date >= mpsDateFrom) &&
-          (!mpsDateTo || s.sitting_date <= mpsDateTo),
-      );
-      const hasAtt = (LOCAL_ATTENDANCE || []).some(
-        (a) =>
-          a.mp_id === m.id &&
-          (!mpsDateFrom || a.sitting_date >= mpsDateFrom) &&
-          (!mpsDateTo || a.sitting_date <= mpsDateTo),
-      );
-      return hasSpeech || hasAtt;
-    }
-    return true;
-  });
+  const mpParties = Array.from(new Set((data?.mps || []).map((m) => m.party))).sort();
+  const mpDistricts = Array.from(new Set((data?.mps || []).map((m) => m.district))).sort();
+  const people = (data?.mps || []).filter(
+    (m) =>
+      matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district) &&
+      (!mpParty || m.party === mpParty) &&
+      (!mpDistrict || m.district === mpDistrict),
+  );
+
+  const getMpStats = (mp: MP) => {
+    const mpSpeeches = (data?.speeches || []).filter((s) => {
+      const matchSpeaker =
+        s.speaker_id === mp.id ||
+        s.speaker_name.toLowerCase().includes(mp.name.toLowerCase()) ||
+        mp.name.toLowerCase().includes(s.speaker_name.toLowerCase());
+      if (!matchSpeaker) return false;
+      if (mpDateFrom && s.sitting_date < mpDateFrom) return false;
+      if (mpDateTo && s.sitting_date > mpDateTo) return false;
+      return true;
+    });
+
+    const attendanceRecords = ((data as any)?.attendance || []).filter((a: any) => {
+      if (a.mp_id !== mp.id) return false;
+      if (mpDateFrom && a.sitting_date < mpDateFrom) return false;
+      if (mpDateTo && a.sitting_date > mpDateTo) return false;
+      return true;
+    });
+
+    const presentCount = attendanceRecords.filter((a: any) => a.recorded_status === "present").length;
+    const totalSittings = attendanceRecords.length;
+
+    return {
+      speechesCount: mpSpeeches.length,
+      presentCount,
+      totalSittings,
+      hasFilteredDate: Boolean(mpDateFrom || mpDateTo),
+    };
+  };
   const timelines = (data?.timelines || []).filter((t) =>
     matches(t.title, t.topic, t.description),
   );
@@ -728,66 +746,51 @@ function WorkspaceApp() {
     );
   }
   function renderPerson(mp: MP) {
-    const dateFilterActive = Boolean(mpsDateFrom || mpsDateTo);
-    const speechesInRange = (data?.speeches || []).filter(
-      (s) =>
-        s.speaker_id === mp.id &&
-        (!mpsDateFrom || s.sitting_date >= mpsDateFrom) &&
-        (!mpsDateTo || s.sitting_date <= mpsDateTo),
-    );
-    const attendanceInRange = (LOCAL_ATTENDANCE || []).filter(
-      (a) =>
-        a.mp_id === mp.id &&
-        (!mpsDateFrom || a.sitting_date >= mpsDateFrom) &&
-        (!mpsDateTo || a.sitting_date <= mpsDateTo),
-    );
-
+    const stats = getMpStats(mp);
     return (
       <article key={mp.id} className="person-card">
         <div className="card-top">
           <span className="avatar">{initials(mp.name)}</span>
-          {bookmark("mp", mp.id)}
+          <div className="person-top-actions">
+            {stats.hasFilteredDate && (
+              <span
+                className={`mp-activity-indicator ${stats.speechesCount > 0 ? "has-activity" : "no-activity"}`}
+                title={stats.speechesCount > 0 ? "Active debate records in selected date window" : "No speeches in selected date window"}
+              >
+                {stats.speechesCount > 0 ? "Active in period" : "No speeches"}
+              </span>
+            )}
+            {bookmark("mp", mp.id)}
+          </div>
         </div>
         <button className="text-button" onClick={() => open("mp", mp.id)}>
           <h3>{mp.name}</h3>
         </button>
-        <p>{mp.party}</p>
-        {dateFilterActive ? (
-          <div
-            style={{
-              margin: "6px 0",
-              padding: "6px 9px",
-              background: "var(--subtle)",
-              borderRadius: "5px",
-              fontSize: "11px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "3px",
-              border: "1px solid var(--line)",
-            }}
-          >
-            <span style={{ color: "var(--green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
-              <CalendarDays size={12} /> {t.nav.inSelectedRange}:
-            </span>
-            <span style={{ color: "var(--ink)" }}>
-              <strong>{speechesInRange.length}</strong> {t.speeches.totalSpeeches.toLowerCase()} · <strong>{attendanceInRange.length}</strong> {t.nav.attendance.toLowerCase()}
+        <div className="person-meta-line">
+          <span className="party-badge">{mp.party}</span>
+          <span className="district-tag">{mp.district}</span>
+        </div>
+
+        {/* Dynamic Activity Stats (reacts immediately to date selection) */}
+        <div className="mp-card-stats-box">
+          <div className="mp-stat-pill">
+            <span className="mp-stat-count">{stats.speechesCount}</span>
+            <span className="mp-stat-label">
+              {stats.hasFilteredDate ? t.nav.speechesRecorded.toLowerCase() : t.mps.totalSpeeches.toLowerCase()}
             </span>
           </div>
-        ) : (
-          <div
-            style={{
-              margin: "6px 0",
-              fontSize: "11px",
-              color: "var(--muted)",
-            }}
-          >
-            {mp.total_speeches ? `${mp.total_speeches} ${t.nav.speechesRecorded}` : t.nav.memberOfParliament}
-          </div>
-        )}
+          {stats.totalSittings > 0 && (
+            <div className="mp-stat-pill">
+              <span className="mp-stat-count">{stats.presentCount}/{stats.totalSittings}</span>
+              <span className="mp-stat-label">{t.mps.sittingsAttended.toLowerCase()}</span>
+            </div>
+          )}
+        </div>
+
         <div className="profile-foot">
-          <span>{mp.district}</span>
+          <span className="mp-role-text">{mp.current_role}</span>
           <button className="text-link" onClick={() => open("mp", mp.id)}>
-            {t.nav.viewProfile} <ArrowRight size={14} />
+            {t.mps.viewProfile} <ArrowRight size={14} />
           </button>
         </div>
       </article>
@@ -1327,114 +1330,154 @@ function WorkspaceApp() {
                 )}
                 {page === "mps" && (
                   <>
-                    <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", justifyContent: "space-between" }}>
-                      <span className="result-count">
-                        {people.length} {t.mps.desc}
-                      </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>
-                          <CalendarDays size={14} /> {t.nav.filterByDate}:
-                        </span>
-                        <input
-                          type="date"
-                          aria-label="Filter members from date"
-                          value={mpsDateFrom}
-                          onChange={(e) => setMpsDateFrom(e.target.value)}
-                          style={{ fontSize: "11px", padding: "5px 8px", borderRadius: "5px", border: "1px solid var(--line)", background: "var(--surface)" }}
-                        />
-                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>to</span>
-                        <input
-                          type="date"
-                          aria-label="Filter members to date"
-                          value={mpsDateTo}
-                          onChange={(e) => setMpsDateTo(e.target.value)}
-                          style={{ fontSize: "11px", padding: "5px 8px", borderRadius: "5px", border: "1px solid var(--line)", background: "var(--surface)" }}
-                        />
-                        <button
-                          type="button"
-                          className="button small-button"
-                          style={{ fontSize: "11px", padding: "4px 8px" }}
-                          onClick={() => {
-                            setMpsDateFrom("2024-01-01");
-                            setMpsDateTo("2024-12-31");
-                          }}
-                        >
-                          {t.nav.sessionsShort}
-                        </button>
-                        {(mpsDateFrom || mpsDateTo) && (
-                          <button
-                            type="button"
-                            className="button small-button"
-                            style={{ fontSize: "11px", padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                            onClick={() => {
-                              setMpsDateFrom("");
-                              setMpsDateTo("");
-                              setMpsActiveOnly(false);
-                            }}
+                    <div className="mp-directory-controls panel">
+                      <div className="mp-filter-top">
+                        <div className="mp-counts">
+                          <Users size={20} className="mp-icon" />
+                          <div>
+                            <h3>{t.mps.title}</h3>
+                            <span className="result-count">
+                              {people.length} / {data?.mps.length || 0} {t.mps.desc}
+                              {(mpParty || mpDistrict || mpDateFrom || mpDateTo || query) && " · filtered"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mp-dropdown-group">
+                          <select
+                            value={mpParty}
+                            onChange={(e) => setMpParty(e.target.value)}
+                            aria-label="Filter by political party"
                           >
-                            <X size={12} /> {t.nav.clearDate}
-                          </button>
+                            <option value="">{t.mps.party} ({mpParties.length})</option>
+                            {mpParties.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={mpDistrict}
+                            onChange={(e) => setMpDistrict(e.target.value)}
+                            aria-label="Filter by electoral district"
+                          >
+                            <option value="">{t.mps.district} ({mpDistricts.length})</option>
+                            {mpDistricts.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Date Range & Dynamic Activity Filter */}
+                      <div className="mp-date-filter-section">
+                        <div className="mp-date-header">
+                          <Clock3 size={15} />
+                          <strong>{t.nav.filterByDate}:</strong>
+                        </div>
+                        <div className="mp-date-inputs-row">
+                          <div className="mp-date-field">
+                            <label htmlFor="mp-filter-date-from">From:</label>
+                            <input
+                              id="mp-filter-date-from"
+                              type="date"
+                              value={mpDateFrom}
+                              onChange={(e) => setMpDateFrom(e.target.value)}
+                            />
+                          </div>
+                          <div className="mp-date-field">
+                            <label htmlFor="mp-filter-date-to">To:</label>
+                            <input
+                              id="mp-filter-date-to"
+                              type="date"
+                              value={mpDateTo}
+                              onChange={(e) => setMpDateTo(e.target.value)}
+                            />
+                          </div>
+                          <div className="mp-quick-presets" role="group" aria-label="Quick date presets">
+                            <button
+                              type="button"
+                              className={`preset-pill ${!mpDateFrom && !mpDateTo ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("");
+                                setMpDateTo("");
+                              }}
+                            >
+                              All Time
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-01-01" && mpDateTo === "2024-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-01-01");
+                                setMpDateTo("2024-12-31");
+                              }}
+                            >
+                              {t.nav.sessionsShort}
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-07-01" && mpDateTo === "2024-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-07-01");
+                                setMpDateTo("2024-12-31");
+                              }}
+                            >
+                              Late 2024
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-01-01" && mpDateTo === "2024-06-30" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-01-01");
+                                setMpDateTo("2024-06-30");
+                              }}
+                            >
+                              Early 2024
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2023-01-01" && mpDateTo === "2023-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2023-01-01");
+                                setMpDateTo("2023-12-31");
+                              }}
+                            >
+                              2023
+                            </button>
+                            {(mpDateFrom || mpDateTo || mpParty || mpDistrict) && (
+                              <button
+                                type="button"
+                                className="preset-pill reset"
+                                onClick={() => {
+                                  setMpDateFrom("");
+                                  setMpDateTo("");
+                                  setMpParty("");
+                                  setMpDistrict("");
+                                }}
+                              >
+                                {t.nav.clearDate}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {(mpDateFrom || mpDateTo) && (
+                          <div className="mp-active-date-banner">
+                            <span className="pulse-dot-green" />
+                            <span>
+                              Active Date Window: <strong>{mpDateFrom || "Earliest"}</strong> to <strong>{mpDateTo || "Latest"}</strong>
+                            </span>
+                          </div>
                         )}
-                        <label style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--muted)", cursor: "pointer", marginLeft: "4px" }}>
-                          <input
-                            type="checkbox"
-                            checked={mpsActiveOnly}
-                            onChange={(e) => setMpsActiveOnly(e.target.checked)}
-                          />
-                          {t.nav.onlyActiveInRange}
-                        </label>
                       </div>
                     </div>
-                    {(mpsDateFrom || mpsDateTo) && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "8px 14px",
-                          background: "var(--green-soft)",
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          color: "var(--green)",
-                          marginBottom: "16px",
-                          border: "1px solid var(--line)",
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <CalendarDays size={14} />
-                          <strong>{mpsDateFrom || "2024-01-01"}</strong> – <strong>{mpsDateTo || "2024-12-31"}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMpsDateFrom("");
-                            setMpsDateTo("");
-                            setMpsActiveOnly(false);
-                          }}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "var(--muted)",
-                            cursor: "pointer",
-                            fontSize: "11px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "3px",
-                          }}
-                        >
-                          <X size={12} /> {t.nav.clearDate}
-                        </button>
-                      </div>
-                    )}
                     <div className="card-grid">
                       {people.map((m) => renderPerson(m))}
                     </div>
                     {!people.length && (
-                      <Empty>
-                        {mpsActiveOnly
-                          ? `No members recorded parliamentary activity between ${mpsDateFrom || "start"} and ${mpsDateTo || "present"}. Try unchecking "Only active in range" or clearing dates.`
-                          : t.mps.noMpsFound}
-                      </Empty>
+                      <Empty>{t.mps.noMpsFound}</Empty>
                     )}
                   </>
                 )}
@@ -2037,7 +2080,7 @@ function WorkspaceApp() {
             {selectedMP && (
               <MPActivityProfile
                 mp={selectedMP}
-                initialFilters={{ dateFrom: mpsDateFrom, dateTo: mpsDateTo }}
+                initialFilters={{ dateFrom: mpDateFrom, dateTo: mpDateTo }}
                 onClose={closeDetail}
                 onOpenSpeech={(speechId) => open("speech", speechId)}
               />
