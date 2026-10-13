@@ -1,6 +1,109 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import React, { useMemo, useState, useEffect } from "react";
+import { ArrowUpRight, ChevronRight, Pause, Play } from "lucide-react";
 import type { MP } from "./types";
+import { useLanguage } from "./i18n/LanguageContext";
+
+const BROADCAST_I18N = {
+  en: {
+    tab1: "01 · LEADERS REPLAY",
+    tab2: "02 · CHAMBER VERDICT",
+    tagRecord: "[ 2024 GENERAL ELECTIONS — LIVE CHAMBER RECORD ]",
+    liveReplay: "LIVE REPLAY",
+    titleMain: "Parliamentary Mandate — ",
+    titleReplayed: "Replayed",
+    subtitle: "The night the parliamentary majority was secured — verified Hansard records, chamber attendance reliability, and speech volume between the key parliamentary leaders.",
+    chamberAttendance: "CHAMBER ATTENDANCE",
+    hansardSpeeches: "HANSARD SPEECHES",
+    compareStances: "Compare Stances",
+    speechesShare: "SPEECH VOLUME SHARE IN PARLIAMENT",
+    share: "Share",
+    speechesCount: "Speeches",
+    verdictTag: "[ OFFICIAL DECLARATION · 10TH PARLIAMENT OF SRI LANKA ]",
+    theVerdictPrefix: "The ",
+    theVerdictGlow: "Verdict",
+    verdictSubtitle: "225 Seats · 10th Parliament · Constitutional Two-Thirds Supermajority Secured",
+    nppPartyName: "National People's Power",
+    sjbPartyName: "Samagi Jana Balawegaya",
+    seatsWon: "SEATS WON",
+    shareUpper: "SHARE",
+    votesUpper: "VOTES",
+    majority113: "MAJORITY 113",
+    supermajority: "NPP SUPERMAJORITY",
+    seatsOverSjb: "SEATS OVER SJB",
+    breaking: "BREAKING",
+    estNpp: "EST. NPP",
+    turnout: "TURNOUT",
+    turnoutSub: "VERIFIED NATIONAL",
+    confirmedSeats: "225 SEATS CONFIRMED",
+    supermajorityDeclared: "CONSTITUTIONAL SUPERMAJORITY DECLARED"
+  },
+  si: {
+    tab1: "01 · නායකයන්ගේ වාර්තාව",
+    tab2: "02 · සභා තීන්දුව",
+    tagRecord: "[ 2024 මහ මැතිවරණය — සභා වාර්තාව ]",
+    liveReplay: "සජීවී වාර්තාව",
+    titleMain: "පාර්ලිමේන්තු ජනවරම — ",
+    titleReplayed: "සමාලෝචනය",
+    subtitle: "පාර්ලිමේන්තු බහුතරය තහවුරු කළ රාත්‍රිය — තහවුරු කළ හැන්සාඩ් වාර්තා, සභා පැමිණීමේ විශ්වාසනීයත්වය, සහ ප්‍රධාන නායකයන්ගේ කථන ප්‍රමාණය.",
+    chamberAttendance: "සභා පැමිණීම",
+    hansardSpeeches: "හැන්සාඩ් කතා",
+    compareStances: "ස්ථාවරයන් සංසන්දනය",
+    speechesShare: "පාර්ලිමේන්තුවේ කථන ප්‍රමාණයේ ප්‍රතිශතය",
+    share: "ප්‍රතිශතය",
+    speechesCount: "කතා",
+    verdictTag: "[ නිල ප්‍රකාශය · 10 වන ශ්‍රී ලංකා පාර්ලිමේන්තුව ]",
+    theVerdictPrefix: "සභා ",
+    theVerdictGlow: "තීන්දුව",
+    verdictSubtitle: "ආසන 225 · 10 වන පාර්ලිමේන්තුව · ව්‍යවස්ථාදායක 2/3 ක බහුතරය තහවුරු විය",
+    nppPartyName: "ජාතික ජන බලවේගය",
+    sjbPartyName: "සමගි ජන බලවේගය",
+    seatsWon: "දිනූ ආසන",
+    shareUpper: "ප්‍රතිශතය",
+    votesUpper: "ඡන්ද",
+    majority113: "බහුතරය 113",
+    supermajority: "ජාජබ සුපිරි බහුතරය",
+    seatsOverSjb: "සජබ ට වඩා ආසන",
+    breaking: "විශේෂ පුවත්",
+    estNpp: "ජාජබ ඇස්තමේන්තුව",
+    turnout: "ප්‍රකාශිත ඡන්ද",
+    turnoutSub: "ජාතික තහවුරු කළ",
+    confirmedSeats: "ආසන 225 තහවුරු විය",
+    supermajorityDeclared: "ව්‍යවස්ථාදායක සුපිරි බහුතරය ප්‍රකාශයට පත් කෙරිණි"
+  },
+  ta: {
+    tab1: "01 · தலைவர்கள் பதிவு",
+    tab2: "02 · சபை தீர்ப்பு",
+    tagRecord: "[ 2024 பொதுத் தேர்தல் — நேரடி சபை பதிவு ]",
+    liveReplay: "நேரடி மறுபதிவு",
+    titleMain: "நாடாளுமன்ற ஆணை — ",
+    titleReplayed: "மீளாய்வு",
+    subtitle: "நாடாளுமன்ற பெரும்பான்மை உறுதிசெய்யப்பட்ட இரவு — சரிபார்க்கப்பட்ட ஹன்சார்ட் பதிவுகள், சபை வருகை நம்பகத்தன்மை மற்றும் முக்கிய தலைவர்களின் உரை அளவு.",
+    chamberAttendance: "சபை வருகை",
+    hansardSpeeches: "ஹன்சார்ட் உரைகள்",
+    compareStances: "நிலைகளை ஒப்பிடுக",
+    speechesShare: "நாடாளுமன்றத்தில் உரை அளவு பங்கு",
+    share: "பங்கு",
+    speechesCount: "உரைகள்",
+    verdictTag: "[ உத்தியோகபூர்வ அறிவிப்பு · 10வது இலங்கை நாடாளுமன்றம் ]",
+    theVerdictPrefix: "",
+    theVerdictGlow: "தீர்ப்பு",
+    verdictSubtitle: "225 இடங்கள் · 10வது நாடாளுமன்றம் · மூன்றில் இரண்டு பங்கு பெரும்பான்மை உறுதி செய்யப்பட்டது",
+    nppPartyName: "தேசிய மக்கள் சக்தி",
+    sjbPartyName: "ஐக்கிய மக்கள் சக்தி",
+    seatsWon: "வென்ற இடங்கள்",
+    shareUpper: "பங்கு",
+    votesUpper: "வாக்குகள்",
+    majority113: "பெரும்பான்மை 113",
+    supermajority: "NPP பெரும்பான்மை",
+    seatsOverSjb: "SJB ஐ விட கூடுதல் இடங்கள்",
+    breaking: "முக்கிய செய்தி",
+    estNpp: "மதிப்பீடு NPP",
+    turnout: "வாக்களிப்பு",
+    turnoutSub: "தேசிய சரிபார்க்கப்பட்டது",
+    confirmedSeats: "225 இடங்கள் உறுதி செய்யப்பட்டன",
+    supermajorityDeclared: "அரசியலமைப்பு மூன்றில் இரண்டு பெரும்பான்மை அறிவிக்கப்பட்டது"
+  }
+};
 
 interface ElectionBroadcastHeroProps {
   mps?: MP[];
@@ -13,6 +116,8 @@ export function ElectionBroadcastHero({
   onOpenMP,
   onExploreCompare,
 }: ElectionBroadcastHeroProps) {
+  const { language } = useLanguage();
+  const bt = BROADCAST_I18N[language as keyof typeof BROADCAST_I18N] || BROADCAST_I18N.en;
   // Resolve real MP records from dataset
   const leaderA = useMemo(() => {
     return (
@@ -120,17 +225,17 @@ export function ElectionBroadcastHero({
         const y = 230 - row.radius * Math.sin(angle);
 
         let party: "NPP" | "SJB" | "OTHER" = "NPP";
-        let color = "#ff2e54";
+        let color = "#16a34a";
 
         if (seatIndex < nppSeats) {
           party = "NPP";
-          color = "#ff2e54";
+          color = "#16a34a";
         } else if (seatIndex < nppSeats + sjbSeats) {
           party = "SJB";
-          color = "#00a8ff";
+          color = "#0d9488";
         } else {
           party = "OTHER";
-          color = seatIndex % 2 === 0 ? "#00e5ff" : "#f59e0b";
+          color = seatIndex % 2 === 0 ? "#10b981" : "#d97706";
         }
 
         seats.push({
@@ -176,7 +281,7 @@ export function ElectionBroadcastHero({
             onClick={() => handleSelectSlide(0)}
           >
             <span className="pill-dot red-dot" />
-            <span>01 · LEADERS REPLAY</span>
+            <span>{bt.tab1}</span>
           </button>
           <button
             type="button"
@@ -184,7 +289,7 @@ export function ElectionBroadcastHero({
             onClick={() => handleSelectSlide(1)}
           >
             <span className="pill-dot blue-dot" />
-            <span>02 · CHAMBER VERDICT</span>
+            <span>{bt.tab2}</span>
           </button>
         </div>
 
@@ -219,21 +324,20 @@ export function ElectionBroadcastHero({
         <section className="broadcast-card broadcast-card-matchup animate-fade">
           <div className="broadcast-card-top-tag">
             <span className="live-bracket-tag">
-              [ 2024 GENERAL ELECTIONS — LIVE CHAMBER RECORD ]
+              {bt.tagRecord}
             </span>
             <div className="broadcast-live-badge">
               <span className="broadcast-pulse-dot" />
-              <span>LIVE REPLAY</span>
+              <span>{bt.liveReplay}</span>
             </div>
           </div>
 
           <div className="broadcast-header-block">
             <h2 className="broadcast-title">
-              Parliamentary Mandate — <span className="neon-red-text">Replayed</span>
+              {bt.titleMain}<span className="neon-red-text">{bt.titleReplayed}</span>
             </h2>
             <p className="broadcast-subtitle">
-              The night the parliamentary majority was secured — verified Hansard records,
-              chamber attendance reliability, and speech volume between the key parliamentary leaders.
+              {bt.subtitle}
             </p>
           </div>
 
@@ -264,11 +368,11 @@ export function ElectionBroadcastHero({
                   <span className="metric-number">
                     {leaderA.attendance_rate || 94.2}%
                   </span>
-                  <span className="metric-label">CHAMBER ATTENDANCE</span>
+                  <span className="metric-label">{bt.chamberAttendance}</span>
                 </div>
                 <div className="candidate-votes-total">
                   <strong>{leaderA.total_speeches || 148}</strong>
-                  <span>HANSARD SPEECHES</span>
+                  <span>{bt.hansardSpeeches}</span>
                 </div>
               </div>
             </div>
@@ -282,8 +386,8 @@ export function ElectionBroadcastHero({
                 <span className="lead-indicator-dot" />
                 <span>
                   {leaderA.attendance_rate >= leaderB.attendance_rate
-                    ? `${leaderA.party_code || "NPP"} +${(leaderA.attendance_rate - leaderB.attendance_rate).toFixed(1)}% ATTENDANCE`
-                    : `${leaderB.party_code || "SJB"} +${(leaderB.attendance_rate - leaderA.attendance_rate).toFixed(1)}% ATTENDANCE`}
+                    ? `${leaderA.party_code || "NPP"} +${(leaderA.attendance_rate - leaderB.attendance_rate).toFixed(1)}% ${bt.chamberAttendance}`
+                    : `${leaderB.party_code || "SJB"} +${(leaderB.attendance_rate - leaderA.attendance_rate).toFixed(1)}% ${bt.chamberAttendance}`}
                 </span>
               </div>
               {onExploreCompare && (
@@ -295,7 +399,7 @@ export function ElectionBroadcastHero({
                     onExploreCompare();
                   }}
                 >
-                  Compare Stances <ArrowUpRight size={13} />
+                  {bt.compareStances} <ArrowUpRight size={13} />
                 </button>
               )}
             </div>
@@ -317,11 +421,11 @@ export function ElectionBroadcastHero({
                   <span className="metric-number">
                     {leaderB.attendance_rate || 91.8}%
                   </span>
-                  <span className="metric-label">CHAMBER ATTENDANCE</span>
+                  <span className="metric-label">{bt.chamberAttendance}</span>
                 </div>
                 <div className="candidate-votes-total align-right">
                   <strong>{leaderB.total_speeches || 192}</strong>
-                  <span>HANSARD SPEECHES</span>
+                  <span>{bt.hansardSpeeches}</span>
                 </div>
               </div>
 
@@ -341,14 +445,14 @@ export function ElectionBroadcastHero({
             <div className="progress-top-labels">
               <span className="label-left-votes">
                 <strong className="neon-red-text">{leaderA.party_code || "NPP"}</strong>{" "}
-                {leaderA.total_speeches} Speeches
+                {leaderA.total_speeches} {bt.speechesCount}
               </span>
               <span className="label-center-meta">
-                SPEECH VOLUME SHARE IN PARLIAMENT
+                {bt.speechesShare}
               </span>
               <span className="label-right-votes">
                 <strong className="neon-blue-text">{leaderB.party_code || "SJB"}</strong>{" "}
-                {leaderB.total_speeches} Speeches
+                {leaderB.total_speeches} {bt.speechesCount}
               </span>
             </div>
 
@@ -368,11 +472,11 @@ export function ElectionBroadcastHero({
             </div>
 
             <div className="progress-bottom-labels">
-              <span className="neon-red-text">{speechShareA}% Share</span>
+              <span className="neon-red-text">{speechShareA}% {bt.share}</span>
               <span className="muted-share">
                 {(leaderA as any).district || "Colombo"} vs {(leaderB as any).district || "Colombo"}
               </span>
-              <span className="neon-blue-text">{speechShareB}% Share</span>
+              <span className="neon-blue-text">{speechShareB}% {bt.share}</span>
             </div>
           </div>
         </section>
@@ -383,16 +487,16 @@ export function ElectionBroadcastHero({
         <section className="broadcast-card broadcast-card-verdict animate-fade">
           <div className="broadcast-card-top-tag center-tag">
             <span className="live-bracket-tag">
-              [ OFFICIAL DECLARATION · 10TH PARLIAMENT OF SRI LANKA ]
+              {bt.verdictTag}
             </span>
           </div>
 
           <div className="verdict-header-block">
             <h2 className="verdict-title">
-              The <span className="neon-verdict-gradient">Verdict</span>
+              {bt.theVerdictPrefix}<span className="neon-verdict-gradient">{bt.theVerdictGlow}</span>
             </h2>
             <p className="verdict-subtitle">
-              225 Seats · 10th Parliament · Constitutional Two-Thirds Supermajority Secured
+              {bt.verdictSubtitle}
             </p>
           </div>
 
@@ -400,16 +504,16 @@ export function ElectionBroadcastHero({
             {/* Left: NPP Seat Box */}
             <div className="party-stat-card card-npp">
               <div className="stat-card-badge red-tag">NPP</div>
-              <div className="stat-card-party-name">National People's Power</div>
+              <div className="stat-card-party-name">{bt.nppPartyName}</div>
               <div className="stat-card-seats-won red-glow-text">{nppSeats}</div>
-              <div className="stat-card-seats-label">SEATS WON</div>
+              <div className="stat-card-seats-label">{bt.seatsWon}</div>
               <div className="stat-card-mini-breakdown">
                 <div className="mini-item">
-                  <span className="mini-label">SHARE</span>
+                  <span className="mini-label">{bt.shareUpper}</span>
                   <span className="mini-val">61.6%</span>
                 </div>
                 <div className="mini-item">
-                  <span className="mini-label">VOTES</span>
+                  <span className="mini-label">{bt.votesUpper}</span>
                   <span className="mini-val">6,863,186</span>
                 </div>
               </div>
@@ -419,7 +523,7 @@ export function ElectionBroadcastHero({
             <div className="chamber-hemicycle-wrapper">
               <div className="chamber-majority-line">
                 <div className="majority-pin">
-                  <span>MAJORITY 113</span>
+                  <span>{bt.majority113}</span>
                 </div>
               </div>
 
@@ -432,13 +536,13 @@ export function ElectionBroadcastHero({
               >
                 <defs>
                   <filter id="glow-red-seat" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ff2e54" floodOpacity="0.8" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#16a34a" floodOpacity="0.75" />
                   </filter>
                   <filter id="glow-blue-seat" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#00a8ff" floodOpacity="0.8" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#0d9488" floodOpacity="0.75" />
                   </filter>
                   <filter id="glow-cyan-seat" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#00e5ff" floodOpacity="0.8" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#d97706" floodOpacity="0.75" />
                   </filter>
                 </defs>
 
@@ -483,25 +587,25 @@ export function ElectionBroadcastHero({
               </svg>
 
               <div className="chamber-center-badge">
-                <span className="badge-party-lead">NPP SUPERMAJORITY</span>
+                <span className="badge-party-lead">{bt.supermajority}</span>
                 <span className="badge-seat-count">+{seatLead}</span>
-                <span className="badge-comparison">SEATS OVER SJB</span>
+                <span className="badge-comparison">{bt.seatsOverSjb}</span>
               </div>
             </div>
 
             {/* Right: SJB Seat Box */}
             <div className="party-stat-card card-sjb">
               <div className="stat-card-badge blue-tag">SJB</div>
-              <div className="stat-card-party-name">Samagi Jana Balawegaya</div>
+              <div className="stat-card-party-name">{bt.sjbPartyName}</div>
               <div className="stat-card-seats-won blue-glow-text">{sjbSeats}</div>
-              <div className="stat-card-seats-label">SEATS WON</div>
+              <div className="stat-card-seats-label">{bt.seatsWon}</div>
               <div className="stat-card-mini-breakdown">
                 <div className="mini-item">
-                  <span className="mini-label">SHARE</span>
+                  <span className="mini-label">{bt.shareUpper}</span>
                   <span className="mini-val">17.7%</span>
                 </div>
                 <div className="mini-item">
-                  <span className="mini-label">VOTES</span>
+                  <span className="mini-label">{bt.votesUpper}</span>
                   <span className="mini-val">1,968,716</span>
                 </div>
               </div>
@@ -512,24 +616,24 @@ export function ElectionBroadcastHero({
           <div className="broadcast-ticker-strip">
             <div className="ticker-badge-breaking">
               <span className="ticker-pulse-bullet" />
-              <span>BREAKING</span>
+              <span>{bt.breaking}</span>
             </div>
 
             <div className="ticker-scroller">
               <div className="ticker-item">
-                <span className="ticker-label">EST. NPP</span>
+                <span className="ticker-label">{bt.estNpp}</span>
                 <span className="ticker-highlight red">61.6%</span>
-                <span className="ticker-delta">(+119 SEATS)</span>
+                <span className="ticker-delta">(+{seatLead} SEATS)</span>
               </div>
               <span className="ticker-divider">/</span>
               <div className="ticker-item">
-                <span className="ticker-label">TURNOUT</span>
+                <span className="ticker-label">{bt.turnout}</span>
                 <span className="ticker-highlight">68.9%</span>
-                <span className="ticker-sub">VERIFIED NATIONAL</span>
+                <span className="ticker-sub">{bt.turnoutSub}</span>
               </div>
               <span className="ticker-divider">/</span>
               <div className="ticker-item">
-                <span className="ticker-label">225 SEATS CONFIRMED</span>
+                <span className="ticker-label">{bt.confirmedSeats}</span>
                 <span className="ticker-highlight red">NPP 159</span>
                 <span className="ticker-highlight blue">SJB 40</span>
                 <span className="ticker-highlight cyan">ITAK 8</span>
@@ -537,7 +641,7 @@ export function ElectionBroadcastHero({
               </div>
               <span className="ticker-divider">/</span>
               <div className="ticker-item">
-                <span className="ticker-sub">CONSTITUTIONAL SUPERMAJORITY DECLARED</span>
+                <span className="ticker-sub">{bt.supermajorityDeclared}</span>
               </div>
             </div>
           </div>

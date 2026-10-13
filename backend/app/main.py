@@ -685,7 +685,7 @@ def rag_ask(req: ChatRequest, request: Request):
         try:
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-3.8-flash")
+            model = genai.GenerativeModel("gemini-1.5-flash")
             context_blocks = []
             for s in matches:
                 passage = s.summary or (s.segments[0].text_en if s.segments else "")
