@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-10-11T01:04:49.931037+00:00",
+  "total_listing_records_discovered": 16,
+  "total_unique_pdfs": 16,
+  "earliest_sitting_date": "2024-07-25",
+  "latest_sitting_date": "2024-12-18",
+  "pdfs_successfully_downloaded": 0,
+  "pdfs_failed": 0,
+  "total_chunks_indexed": 100,
+  "chunks_by_language": {
+    "si": 69,
+    "ta": 28,
+    "en": 3,
+    "mixed": 0
+  },
+  "duplicate_hash_count": 0,
+  "embedding_provider": "local",
+  "qdrant_collection": "sri_lanka_hansards",
+  "status": "PARTIAL"
+}

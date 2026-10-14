@@ -22,17 +22,20 @@ import {
   Pause,
   Play,
   Search,
+  Send,
   SlidersHorizontal,
+  Sparkles,
   Square,
   Sun,
   Users,
   Volume2,
   VolumeX,
   X,
+  Loader2,
 } from "lucide-react";
-import { DEMO_WORKSPACE, loadWorkspace } from "./api";
+import { CivicApi, DEMO_WORKSPACE, loadWorkspace } from "./api";
 import type { Workspace } from "./api";
-import type { Commitment, MP, Speech } from "./types";
+import type { ChatResponse, Commitment, MP, Speech } from "./types";
 import { MPActivityProfile } from "./MPActivityProfile";
 import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
 import type { Language } from "./i18n/types";
@@ -40,6 +43,7 @@ import { SUPPORTED_LANGUAGES } from "./i18n/types";
 import { useVoiceInput } from "./hooks/useVoiceInput";
 import { useSpeakText } from "./hooks/useSpeakText";
 import { EvidenceTrailView } from "./EvidenceTrailView";
+import { ElectionBroadcastHero } from "./ElectionBroadcastHero";
 
 const STANDALONE_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
@@ -336,6 +340,10 @@ function WorkspaceApp() {
   const [topic, setTopic] = useState(""); // empty = "All topics" sentinel
   const [status, setStatus] = useState(""); // empty = "All statuses" sentinel
   const [sort, setSort] = useState("newest");
+  const [mpParty, setMpParty] = useState("");
+  const [mpDistrict, setMpDistrict] = useState("");
+  const [mpDateFrom, setMpDateFrom] = useState("");
+  const [mpDateTo, setMpDateTo] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobile, setMobile] = useState(
     () => matchMedia("(max-width: 850px)").matches,
@@ -348,7 +356,7 @@ function WorkspaceApp() {
   }, []);
   const [help, setHelp] = useState(false);
   const [theme, setTheme] = useState(() =>
-    readLocal<string>("ct-theme", "light") === "dark" ? "dark" : "light",
+    readLocal<string>("ct-theme", "dark") === "light" ? "light" : "dark",
   );
   const [saved, setSaved] = useState<string[]>(() => {
     const values = readLocal<unknown>("ct-saved", []);
@@ -361,6 +369,24 @@ function WorkspaceApp() {
   // transcript language (separate from UI language)
   const [transcriptLang, setTranscriptLang] = useState("en");
   const [showHansardPreview, setShowHansardPreview] = useState(false);
+  const [backendOffline, setBackendOffline] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<ChatResponse | null>(null);
+
+  async function runAiQuery(q: string) {
+    if (!q.trim()) return;
+    setAiLoading(true);
+    try {
+      const res = await CivicApi.askAssistant(q);
+      setAiResult(res);
+    } catch {
+      setToast("Unable to reach assistant. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
   const searchRef = useRef<HTMLInputElement>(null);
   const voice = useVoiceInput({
     language,
@@ -409,27 +435,37 @@ function WorkspaceApp() {
     return () => window.removeEventListener("keydown", shortcut);
   }, []);
   useEffect(() => {
-    if (STANDALONE_DEMO) return;
+    if (STANDALONE_DEMO) {
+      setData(DEMO_WORKSPACE);
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
+    setLoading(true);
     loadWorkspace(controller.signal)
       .then((value) => {
         setData(value);
+        setBackendOffline(false);
+        setError("");
         setLoading(false);
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setError(
-            "We couldn’t reach a compatible data service. Start the backend or retry the connection.",
-          );
+          // Gracefully fallback to demo workspace so data ALWAYS shows immediately
+          setData(DEMO_WORKSPACE);
+          setBackendOffline(true);
+          setError("");
           setLoading(false);
         }
       })
       .finally(() => clearTimeout(timeout));
     const timeout = setTimeout(() => {
       controller.abort();
-      setError("The data service took too long to respond. Please retry.");
+      setData(DEMO_WORKSPACE);
+      setBackendOffline(true);
+      setError("");
       setLoading(false);
-    }, 12000);
+    }, 4000);
     return () => {
       clearTimeout(timeout);
       controller.abort();
@@ -537,9 +573,44 @@ function WorkspaceApp() {
       matches(c.title, c.sponsor_name, c.category, c.original_quote) &&
       (!status || c.current_status === status),
   );
-  const people = (data?.mps || []).filter((m) =>
-    matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district),
+  const mpParties = Array.from(new Set((data?.mps || []).map((m) => m.party))).sort();
+  const mpDistricts = Array.from(new Set((data?.mps || []).map((m) => m.district))).sort();
+  const people = (data?.mps || []).filter(
+    (m) =>
+      matches(m.name, m.sinhala_name, m.tamil_name, m.party, m.district) &&
+      (!mpParty || m.party === mpParty) &&
+      (!mpDistrict || m.district === mpDistrict),
   );
+
+  const getMpStats = (mp: MP) => {
+    const mpSpeeches = (data?.speeches || []).filter((s) => {
+      const matchSpeaker =
+        s.speaker_id === mp.id ||
+        s.speaker_name.toLowerCase().includes(mp.name.toLowerCase()) ||
+        mp.name.toLowerCase().includes(s.speaker_name.toLowerCase());
+      if (!matchSpeaker) return false;
+      if (mpDateFrom && s.sitting_date < mpDateFrom) return false;
+      if (mpDateTo && s.sitting_date > mpDateTo) return false;
+      return true;
+    });
+
+    const attendanceRecords = ((data as any)?.attendance || []).filter((a: any) => {
+      if (a.mp_id !== mp.id) return false;
+      if (mpDateFrom && a.sitting_date < mpDateFrom) return false;
+      if (mpDateTo && a.sitting_date > mpDateTo) return false;
+      return true;
+    });
+
+    const presentCount = attendanceRecords.filter((a: any) => a.recorded_status === "present").length;
+    const totalSittings = attendanceRecords.length;
+
+    return {
+      speechesCount: mpSpeeches.length,
+      presentCount,
+      totalSittings,
+      hasFilteredDate: Boolean(mpDateFrom || mpDateTo),
+    };
+  };
   const timelines = (data?.timelines || []).filter((t) =>
     matches(t.title, t.topic, t.description),
   );
@@ -673,20 +744,51 @@ function WorkspaceApp() {
     );
   }
   function renderPerson(mp: MP) {
+    const stats = getMpStats(mp);
     return (
       <article key={mp.id} className="person-card">
         <div className="card-top">
           <span className="avatar">{initials(mp.name)}</span>
-          {bookmark("mp", mp.id)}
+          <div className="person-top-actions">
+            {stats.hasFilteredDate && (
+              <span
+                className={`mp-activity-indicator ${stats.speechesCount > 0 ? "has-activity" : "no-activity"}`}
+                title={stats.speechesCount > 0 ? "Active debate records in selected date window" : "No speeches in selected date window"}
+              >
+                {stats.speechesCount > 0 ? "Active in period" : "No speeches"}
+              </span>
+            )}
+            {bookmark("mp", mp.id)}
+          </div>
         </div>
         <button className="text-button" onClick={() => open("mp", mp.id)}>
           <h3>{mp.name}</h3>
         </button>
-        <p>{mp.party}</p>
+        <div className="person-meta-line">
+          <span className="party-badge">{mp.party}</span>
+          <span className="district-tag">{mp.district}</span>
+        </div>
+
+        {/* Dynamic Activity Stats (reacts immediately to date selection) */}
+        <div className="mp-card-stats-box">
+          <div className="mp-stat-pill">
+            <span className="mp-stat-count">{stats.speechesCount}</span>
+            <span className="mp-stat-label">
+              {stats.hasFilteredDate ? "speeches in period" : "indexed speeches"}
+            </span>
+          </div>
+          {stats.totalSittings > 0 && (
+            <div className="mp-stat-pill">
+              <span className="mp-stat-count">{stats.presentCount}/{stats.totalSittings}</span>
+              <span className="mp-stat-label">sittings attended</span>
+            </div>
+          )}
+        </div>
+
         <div className="profile-foot">
-          <span>{mp.district}</span>
+          <span className="mp-role-text">{mp.current_role}</span>
           <button className="text-link" onClick={() => open("mp", mp.id)}>
-            View profile <ArrowRight size={14} />
+            {t.mps.viewProfile} <ArrowRight size={14} />
           </button>
         </div>
       </article>
@@ -816,22 +918,41 @@ function WorkspaceApp() {
         </header>
         <main id="main" tabIndex={-1}>
           <div className="data-notice">
-            <span className="notice-dot" />
+            <span className={`notice-dot ${backendOffline ? "notice-dot-offline" : ""}`} />
             <span>
               <strong>
-                {data?.meta.mode === "mongodb"
-                  ? t.overview.connectedDataset
-                  : t.overview.demoWorkspace}
+                {backendOffline
+                  ? "Offline Sample Dataset"
+                  : data?.meta.mode === "mongodb"
+                    ? t.overview.connectedDataset
+                    : t.overview.demoWorkspace}
               </strong>
               <span className="notice-detail">
-                {data?.meta.mode === "mongodb"
-                  ? ` · ${t.overview.connectedNotice}`
-                  : ` · ${t.overview.demoNotice}`}
+                {backendOffline
+                  ? " · FastAPI backend not running on port 8000"
+                  : data?.meta.mode === "mongodb"
+                    ? ` · ${t.overview.connectedNotice}`
+                    : ` · ${t.overview.demoNotice}`}
               </span>
+              {!backendOffline && data?.meta?.gemini_connected && (
+                <span className="badge badge-verified" style={{ marginLeft: 8 }}>
+                  <Sparkles size={12} /> Gemini AI Ready
+                </span>
+              )}
             </span>
-            <button onClick={() => setHelp(true)}>
-              {t.overview.aboutData} <ArrowUpRight size={13} />
-            </button>
+            {backendOffline ? (
+              <button
+                className="button small-button"
+                style={{ marginLeft: "auto" }}
+                onClick={() => setAttempt((a) => a + 1)}
+              >
+                Connect to Backend
+              </button>
+            ) : (
+              <button onClick={() => setHelp(true)}>
+                {t.overview.aboutData} <ArrowUpRight size={13} />
+              </button>
+            )}
           </div>
           {page !== "trail" && (
             <>
@@ -920,6 +1041,19 @@ function WorkspaceApp() {
                   )}
                   <button className="search-submit" type="submit">
                     {t.nav.searchBtn} <ArrowRight size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-ask-btn"
+                    onClick={() => {
+                      setAiQuestion(query || "");
+                      setAiModalOpen(true);
+                      if (query.trim()) runAiQuery(query);
+                    }}
+                    title="Ask Parliament AI Assistant"
+                  >
+                    <Sparkles size={15} />
+                    <span>Ask AI</span>
                   </button>
                 </form>
 
@@ -1016,6 +1150,11 @@ function WorkspaceApp() {
               <div className="page-content" key={page}>
                 {page === "overview" && (
                   <>
+                    <ElectionBroadcastHero
+                      mps={data.mps}
+                      onOpenMP={(mpId) => open("mp", mpId)}
+                      onExploreCompare={() => navigate("compare")}
+                    />
                     <div className="stats-strip">
                       {[
                         {
@@ -1190,11 +1329,154 @@ function WorkspaceApp() {
                 )}
                 {page === "mps" && (
                   <>
-                    <div className="filter-bar">
-                      <span className="result-count">
-                        {people.length} {t.mps.desc}
-                      </span>
+                    <div className="mp-directory-controls panel">
+                      <div className="mp-filter-top">
+                        <div className="mp-counts">
+                          <Users size={20} className="mp-icon" />
+                          <div>
+                            <h3>All Members of Parliament</h3>
+                            <span className="result-count">
+                              Showing {people.length} of {data?.mps.length || 0} members
+                              {(mpParty || mpDistrict || mpDateFrom || mpDateTo || query) && " (filtered)"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mp-dropdown-group">
+                          <select
+                            value={mpParty}
+                            onChange={(e) => setMpParty(e.target.value)}
+                            aria-label="Filter by political party"
+                          >
+                            <option value="">All Parties ({mpParties.length})</option>
+                            {mpParties.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={mpDistrict}
+                            onChange={(e) => setMpDistrict(e.target.value)}
+                            aria-label="Filter by electoral district"
+                          >
+                            <option value="">All Districts ({mpDistricts.length})</option>
+                            {mpDistricts.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Date Range & Dynamic Activity Filter */}
+                      <div className="mp-date-filter-section">
+                        <div className="mp-date-header">
+                          <Clock3 size={15} />
+                          <strong>Filter Activity by Date Range:</strong>
+                          <span className="muted small">
+                            Changing dates dynamically recalculates speeches & attendance for each member
+                          </span>
+                        </div>
+                        <div className="mp-date-inputs-row">
+                          <div className="mp-date-field">
+                            <label htmlFor="mp-filter-date-from">From:</label>
+                            <input
+                              id="mp-filter-date-from"
+                              type="date"
+                              value={mpDateFrom}
+                              onChange={(e) => setMpDateFrom(e.target.value)}
+                            />
+                          </div>
+                          <div className="mp-date-field">
+                            <label htmlFor="mp-filter-date-to">To:</label>
+                            <input
+                              id="mp-filter-date-to"
+                              type="date"
+                              value={mpDateTo}
+                              onChange={(e) => setMpDateTo(e.target.value)}
+                            />
+                          </div>
+                          <div className="mp-quick-presets" role="group" aria-label="Quick date presets">
+                            <button
+                              type="button"
+                              className={`preset-pill ${!mpDateFrom && !mpDateTo ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("");
+                                setMpDateTo("");
+                              }}
+                            >
+                              All Time
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-01-01" && mpDateTo === "2024-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-01-01");
+                                setMpDateTo("2024-12-31");
+                              }}
+                            >
+                              2024 Full Year
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-07-01" && mpDateTo === "2024-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-07-01");
+                                setMpDateTo("2024-12-31");
+                              }}
+                            >
+                              Late 2024
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2024-01-01" && mpDateTo === "2024-06-30" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2024-01-01");
+                                setMpDateTo("2024-06-30");
+                              }}
+                            >
+                              Early 2024
+                            </button>
+                            <button
+                              type="button"
+                              className={`preset-pill ${mpDateFrom === "2023-01-01" && mpDateTo === "2023-12-31" ? "active" : ""}`}
+                              onClick={() => {
+                                setMpDateFrom("2023-01-01");
+                                setMpDateTo("2023-12-31");
+                              }}
+                            >
+                              2023
+                            </button>
+                            {(mpDateFrom || mpDateTo || mpParty || mpDistrict) && (
+                              <button
+                                type="button"
+                                className="preset-pill reset"
+                                onClick={() => {
+                                  setMpDateFrom("");
+                                  setMpDateTo("");
+                                  setMpParty("");
+                                  setMpDistrict("");
+                                }}
+                              >
+                                Reset Filters
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {(mpDateFrom || mpDateTo) && (
+                          <div className="mp-active-date-banner">
+                            <span className="pulse-dot-green" />
+                            <span>
+                              Active Date Window: <strong>{mpDateFrom || "Earliest"}</strong> to <strong>{mpDateTo || "Latest"}</strong>.
+                              Member cards & profiles below reflect speech records and sittings within this period.
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
+
                     <div className="card-grid">
                       {people.map((m) => renderPerson(m))}
                     </div>
@@ -1272,6 +1554,111 @@ function WorkspaceApp() {
                       </Empty>
                     ) : (
                       <>
+                        {selectedLeaders.length >= 2 && (() => {
+                          const leaderA = selectedLeaders[0];
+                          const leaderB = selectedLeaders[1];
+                          const totalSpeeches = (leaderA.total_speeches || 1) + (leaderB.total_speeches || 1);
+                          const shareA = Math.round(((leaderA.total_speeches || 1) / totalSpeeches) * 100);
+                          const shareB = 100 - shareA;
+                          const diff = (leaderA.total_speeches || 0) - (leaderB.total_speeches || 0);
+
+                          return (
+                            <div className="broadcast-card" style={{ marginBottom: 24, padding: "24px 28px" }}>
+                              <div className="broadcast-card-top-tag">
+                                <span className="live-bracket-tag">[ HEAD-TO-HEAD PARLIAMENTARY RECORD ]</span>
+                                <div className="broadcast-live-badge">
+                                  <span className="broadcast-pulse-dot" />
+                                  <span>LIVE MATCHUP</span>
+                                </div>
+                              </div>
+                              <div className="matchup-stage" style={{ marginBottom: 20 }}>
+                                <div
+                                  className="candidate-column candidate-left"
+                                  onClick={() => open("mp", leaderA.id)}
+                                  style={{ cursor: "pointer" }}
+                                  title={`View profile for ${leaderA.name}`}
+                                >
+                                  <div className="candidate-avatar-wrapper ring-red">
+                                    <div className="candidate-avatar">
+                                      <span className="candidate-initials">{initials(leaderA.name)}</span>
+                                    </div>
+                                    <span className="candidate-badge-party red-bg">{leaderA.party_code}</span>
+                                  </div>
+                                  <div className="candidate-details">
+                                    <h3 className="candidate-name">{leaderA.name}</h3>
+                                    <span className="candidate-role-sub">{leaderA.current_role || leaderA.party}</span>
+                                    <div className="candidate-metric red-metric">
+                                      <span className="metric-number">{leaderA.attendance_rate}%</span>
+                                      <span className="metric-label">ATTENDANCE</span>
+                                    </div>
+                                    <div className="candidate-votes-total">
+                                      <strong>{leaderA.total_speeches}</strong>
+                                      <span>RECORDED SPEECHES</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="matchup-center-nexus">
+                                  <div className="vs-neon-orb">
+                                    <span>VS</span>
+                                  </div>
+                                  <div className="lead-pill-badge">
+                                    <span className="lead-indicator-dot" />
+                                    <span>
+                                      {diff >= 0
+                                        ? `${leaderA.party_code} LEAD · +${diff} SPEECHES`
+                                        : `${leaderB.party_code} LEAD · +${Math.abs(diff)} SPEECHES`}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div
+                                  className="candidate-column candidate-right"
+                                  onClick={() => open("mp", leaderB.id)}
+                                  style={{ cursor: "pointer" }}
+                                  title={`View profile for ${leaderB.name}`}
+                                >
+                                  <div className="candidate-details align-right">
+                                    <h3 className="candidate-name">{leaderB.name}</h3>
+                                    <span className="candidate-role-sub">{leaderB.current_role || leaderB.party}</span>
+                                    <div className="candidate-metric blue-metric">
+                                      <span className="metric-number">{leaderB.attendance_rate}%</span>
+                                      <span className="metric-label">ATTENDANCE</span>
+                                    </div>
+                                    <div className="candidate-votes-total align-right">
+                                      <strong>{leaderB.total_speeches}</strong>
+                                      <span>RECORDED SPEECHES</span>
+                                    </div>
+                                  </div>
+                                  <div className="candidate-avatar-wrapper ring-blue">
+                                    <div className="candidate-avatar">
+                                      <span className="candidate-initials">{initials(leaderB.name)}</span>
+                                    </div>
+                                    <span className="candidate-badge-party blue-bg">{leaderB.party_code}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="broadcast-progress-container">
+                                <div className="progress-top-labels">
+                                  <span><strong className="neon-red-text">{leaderA.party_code}</strong> {leaderA.total_speeches} speeches</span>
+                                  <span className="label-center-meta">SPEECH VOLUME PROPORTION</span>
+                                  <span><strong className="neon-blue-text">{leaderB.party_code}</strong> {leaderB.total_speeches} speeches</span>
+                                </div>
+                                <div className="progress-dual-bar">
+                                  <div className="bar-segment bar-segment-red" style={{ width: `${shareA}%` }} />
+                                  <div className="bar-segment bar-segment-divider" style={{ width: "2%" }} />
+                                  <div className="bar-segment bar-segment-blue" style={{ width: `${shareB}%` }} />
+                                </div>
+                                <div className="progress-bottom-labels">
+                                  <span className="neon-red-text">{shareA}%</span>
+                                  <span className="muted-share">{leaderA.district} vs {leaderB.district}</span>
+                                  <span className="neon-blue-text">{shareB}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="inline-note">
                           {t.compare.noStance}
                         </div>
@@ -1699,6 +2086,7 @@ function WorkspaceApp() {
             {selectedMP && (
               <MPActivityProfile
                 mp={selectedMP}
+                initialFilters={{ dateFrom: mpDateFrom, dateTo: mpDateTo }}
                 onClose={closeDetail}
                 onOpenSpeech={(speechId) => open("speech", speechId)}
               />
@@ -1826,6 +2214,148 @@ function WorkspaceApp() {
               {data?.meta.loaded_at &&
                 ` Snapshot loaded ${new Date(data.meta.loaded_at).toLocaleString("en-GB")}.`}
             </p>
+          </div>
+        </Dialog>
+      )}
+      {aiModalOpen && (
+        <Dialog title="PARLIAMENT AI ASSISTANT" onClose={() => setAiModalOpen(false)} wide>
+          <div className="ai-modal-content">
+            <div className="ai-modal-intro">
+              <p className="muted" style={{ margin: 0 }}>
+                Ask questions across Sri Lankan parliamentary Hansard records and policy commitments. Responses are grounded strictly in indexed records using Gemini 3.8 Flash & the Hansard RAG service.
+              </p>
+            </div>
+
+            <form
+              className="ai-modal-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (aiQuestion.trim()) runAiQuery(aiQuestion);
+              }}
+            >
+              <div className="ai-input-wrap">
+                <input
+                  type="text"
+                  className="ai-input"
+                  placeholder="e.g., What did Dr. Harsha de Silva say about VAT exemptions?"
+                  value={aiQuestion}
+                  onChange={(e) => setAiQuestion(e.target.value)}
+                  disabled={aiLoading}
+                  autoFocus
+                />
+                <button type="submit" className="button primary" disabled={aiLoading || !aiQuestion.trim()}>
+                  {aiLoading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+                  <span>{aiLoading ? "Thinking..." : "Ask"}</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="ai-quick-prompts">
+              <span className="eyebrow">Suggested Inquiries</span>
+              <div className="choice-list">
+                {[
+                  "What did Dr. Harsha de Silva say about VAT exemptions?",
+                  "What are the recorded commitments on public debt?",
+                  "Summarize Hansard records on free healthcare funding",
+                  "What did Anura Kumara Dissanayake state on procurement?",
+                ].map((promptText) => (
+                  <button
+                    key={promptText}
+                    type="button"
+                    className="choice"
+                    onClick={() => {
+                      setAiQuestion(promptText);
+                      runAiQuery(promptText);
+                    }}
+                    disabled={aiLoading}
+                  >
+                    {promptText}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {aiLoading && (
+              <div className="ai-loading-state">
+                <Loader2 size={28} className="spin" />
+                <p>Retrieving parliamentary records and synthesizing grounded response...</p>
+              </div>
+            )}
+
+            {aiResult && !aiLoading && (
+              <div className="ai-result-card">
+                <div className="ai-result-head">
+                  <div className="ai-badge-group">
+                    <span className="badge badge-verified">
+                      <Sparkles size={13} /> {aiResult.confidence_score > 0 ? `${aiResult.confidence_score}% Grounded` : "Extractive Record"}
+                    </span>
+                    <span className="badge">
+                      {aiResult.citations.length} Citation{aiResult.citations.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {aiResult.answer && (
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Listen to answer"
+                      onClick={() => tts.speak(aiResult.answer)}
+                    >
+                      <Volume2 size={16} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="ai-answer-text">
+                  <p style={{ margin: 0 }}>{aiResult.answer}</p>
+                </div>
+
+                {aiResult.citations.length > 0 && (
+                  <div className="ai-citations-section">
+                    <span className="eyebrow">Indexed Hansard Citations</span>
+                    <div className="ai-citations-list">
+                      {aiResult.citations.map((c, idx) => (
+                        <div key={idx} className="ai-citation-item">
+                          <div className="ai-citation-info">
+                            <strong>{c.title}</strong>
+                            <span className="muted">{c.source_type} · {c.ref_code}</span>
+                          </div>
+                          <div className="ai-citation-actions">
+                            {c.speech_id && (
+                              <button
+                                type="button"
+                                className="button small-button"
+                                onClick={() => {
+                                  setAiModalOpen(false);
+                                  open("speech", c.speech_id!);
+                                }}
+                              >
+                                View Speech
+                              </button>
+                            )}
+                            {c.url && (
+                              <a
+                                href={c.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="source-link"
+                              >
+                                Hansard PDF <ArrowUpRight size={13} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiResult.missing_evidence_flags && aiResult.missing_evidence_flags.length > 0 && (
+                  <div className="inline-note">
+                    {aiResult.missing_evidence_flags.join(" ")}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </Dialog>
       )}

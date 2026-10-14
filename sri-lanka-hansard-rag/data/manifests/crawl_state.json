@@ -1,0 +1,28 @@
+{
+  "last_discovered_page": 2,
+  "total_discovered_documents": 16,
+  "discovered_urls": [
+    "https://www.parliament.lk/uploads/documents/hansard/1735286612086554.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1734685396083959.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1734424725051921.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1734081038099638.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1733893521018713.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1733459564028450.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1733129733009213.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1726136307029282.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1725872549048050.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1724667241009674.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1723799603056387.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1723699436081013.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1723527507075483.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1723192998036558.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1722854595016174.pdf",
+    "https://www.parliament.lk/uploads/documents/hansard/1722840995013814.pdf"
+  ],
+  "downloaded_document_ids": [
+    "hansard_2024-12-18_1735286612086554",
+    "hansard_2024-12-17_1734685396083959"
+  ],
+  "failed_document_ids": [],
+  "last_sync_timestamp": "2026-10-11T01:01:11.992994+00:00"
+}
