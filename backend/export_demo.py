@@ -6,9 +6,16 @@ from backend.app.activity import DEMO_ATTENDANCE, DEMO_MEMBERSHIPS, DEMO_SITTING
 from backend.app.evidence import DEMO_TRAIL_EVENTS, DEMO_TRAIL_RELATIONSHIPS
 
 root = Path(__file__).resolve().parents[1]
-data = {name: [item.model_dump() for item in records] for name, records in DEMO.items()}
-for person in data['mps']:
-    person['avatar_url'] = ''
+mps_225_file = root / "backend" / "app" / "mps_225_enriched.json"
+if mps_225_file.exists():
+    with open(mps_225_file, "r", encoding="utf-8") as f:
+        mps_225 = json.load(f)
+    data = {name: [item.model_dump() for item in records] for name, records in DEMO.items()}
+    data['mps'] = mps_225
+else:
+    data = {name: [item.model_dump() for item in records] for name, records in DEMO.items()}
+    for person in data['mps']:
+        person['avatar_url'] = ''
 
 speeches_list = [item.model_dump() for item in DEMO['speeches']]
 sittings_list = [item.model_dump() for item in DEMO_SITTINGS]

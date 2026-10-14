@@ -748,7 +748,24 @@ function WorkspaceApp() {
     return (
       <article key={mp.id} className="person-card">
         <div className="card-top">
-          <span className="avatar">{initials(mp.name)}</span>
+          <div className="avatar-container">
+            {mp.avatar_url ? (
+              <img
+                src={mp.avatar_url}
+                alt={mp.name}
+                className="avatar-photo"
+                loading="lazy"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                  const sib = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
+                  if (sib) sib.style.display = "flex";
+                }}
+              />
+            ) : null}
+            <span className="avatar" style={{ display: mp.avatar_url ? "none" : "flex" }}>
+              {initials(mp.name)}
+            </span>
+          </div>
           <div className="person-top-actions">
             {stats.hasFilteredDate && (
               <span

@@ -41,6 +41,13 @@ async def lifespan(app):
     try:
         if MODE == "demo":
             app.state.records = dict(DEMO)
+            mps_225_file = _here / "app" / "mps_225_enriched.json"
+            if mps_225_file.exists():
+                try:
+                    with open(mps_225_file, "r", encoding="utf-8") as f:
+                        app.state.records["mps"] = [MP.model_validate(m) for m in json.load(f)]
+                except Exception as me:
+                    logging.warning("Could not load mps_225_enriched: %s", me)
             app.state.activity = {
                 "attendance":  DEMO_ATTENDANCE,
                 "memberships": DEMO_MEMBERSHIPS,
@@ -53,7 +60,7 @@ async def lifespan(app):
 
             # Inject real extracted parliament Hansards if manifest exists
             manifest_file = _here.parent / "sri-lanka-hansard-rag" / "data" / "manifests" / "documents.jsonl"
-            if manifest_file.exists():
+            if manifest_file.exists() and os.getenv("INJECT_MANIFEST_SPEECHES", "false").lower() == "true":
                 real_speeches = list(SAMPLE_SPEECHES)
                 real_sittings = list(DEMO_SITTINGS)
                 mp_pool = list(SAMPLE_MPS)
@@ -65,6 +72,7 @@ async def lifespan(app):
                             doc = json.loads(line)
                             doc_sitting = doc.get("sitting_date", "2024")
                             doc_title = doc.get("title") or f"Hansard of {doc_sitting}"
+                            assigned_mp = mp_pool[idx % len(mp_pool)]
                             speech_title = f"{assigned_mp.name} — {doc_title}"
                             real_speeches.append(
                                 Speech(

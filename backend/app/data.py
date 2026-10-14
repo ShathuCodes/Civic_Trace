@@ -59,6 +59,9 @@ class MP(BaseModel):
     bio: str
     stances: Dict[str, str] # e.g. {"Taxation": "Progressive Direct Tax", "IMF Agreement": "Renegotiate Social Safety Net"}
     commitments_count: Dict[str, int] # {"kept": 4, "in_progress": 7, "broken": 1, "compromised": 2}
+    news_sentiment: Optional[Dict[str, int]] = None
+    news_articles: Optional[List[Dict[str, Any]]] = None
+    public_media_statements: Optional[List[Dict[str, Any]]] = None
 
 class CommitmentTimelineEvent(BaseModel):
     date: str

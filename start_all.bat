@@ -10,8 +10,14 @@ REM ── Backend ────────────────────�
 echo [1/2] Starting FastAPI backend on http://localhost:8000 ...
 echo       Environment: backend\.env (auto-loaded by python-dotenv)
 echo.
+if exist "%~dp0backend\venv\Scripts\python.exe" (
+    set "PYTHON_CMD=%~dp0backend\venv\Scripts\python.exe"
+) else (
+    set "PYTHON_CMD=python"
+)
+
 start "Civic Trace – Backend" cmd /k ^
-  "cd /d %~dp0 && python -m uvicorn backend.app.main:app --reload --port 8000"
+  "cd /d %~dp0 && %PYTHON_CMD% -m uvicorn backend.app.main:app --reload --port 8000"
 
 REM ── Frontend ─────────────────────────────────────────
 echo [2/2] Starting Vite + React frontend on http://localhost:5173 ...

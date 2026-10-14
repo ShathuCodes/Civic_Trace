@@ -21,7 +21,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(
   "",
 );
 // Explicit demo snapshot exported from the backend. These records are unreviewed.
-export const LOCAL_MPS = fixtures.mps as MP[];
+export const LOCAL_MPS = (fixtures.mps as unknown) as MP[];
 export const LOCAL_SPEECHES = fixtures.speeches as Speech[];
 export const LOCAL_COMMITMENTS = fixtures.commitments as Commitment[];
 export const LOCAL_TIMELINES = fixtures.timelines as IssueTimeline[];

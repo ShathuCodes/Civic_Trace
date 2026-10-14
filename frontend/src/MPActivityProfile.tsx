@@ -35,6 +35,8 @@ import {
   Search,
   SlidersHorizontal,
   Volume2,
+  Newspaper,
+  Radio,
   X,
 } from "lucide-react";
 import { CivicApi } from "./api";
@@ -563,6 +565,164 @@ function TopicsSection({
   );
 }
 
+function MediaStatementsTab({ mp }: { mp: MP }) {
+  const statements = mp.public_media_statements || [];
+
+  if (statements.length === 0) {
+    return (
+      <div className="empty">
+        <Radio size={22} />
+        <h3>No media statements recorded</h3>
+        <p>No verified public or broadcast statements are indexed for this MP yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ap-tab-content">
+      <div className="ap-sub-filter">
+        <Radio size={14} />
+        <span>Public Pledges & Broadcast Statements vs. Parliamentary Action</span>
+        <span className="result-count">{statements.length} recorded</span>
+      </div>
+
+      <div className="mp-statements-list">
+        {statements.map((stmt) => {
+          const match = stmt.parliamentary_match;
+          const status = match?.status || "unaddressed";
+          return (
+            <div key={stmt.id} className="mp-statement-card">
+              <div className="mp-statement-platform">
+                <strong>{stmt.platform}</strong>
+                <span>{fmtDate(stmt.date)}</span>
+              </div>
+              <p className="mp-statement-quote">"{stmt.statement}"</p>
+
+              {match && (
+                <div className="mp-statement-match">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="muted small">PARLIAMENTARY FOLLOW-UP:</span>
+                    <span className={`match-status-badge ${status}`}>
+                      {status === "aligned" && "✓ Aligned with floor speech"}
+                      {status === "in_progress" && "⏳ Active in committee review"}
+                      {status === "contradicted" && "⚠️ Divergent from parliamentary vote"}
+                      {status === "unaddressed" && "· Unaddressed on the floor"}
+                    </span>
+                  </div>
+                  <p className="small" style={{ margin: "4px 0 0" }}>{match.note}</p>
+                  {match.sitting_date && (
+                    <span className="muted small">Referenced sitting: {match.sitting_date}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NewsSentimentTab({ mp }: { mp: MP }) {
+  const articles = mp.news_articles || [];
+  const sentiment = mp.news_sentiment || {
+    positive_count: articles.filter((a) => a.sentiment === "positive").length,
+    negative_count: articles.filter((a) => a.sentiment === "negative").length,
+    neutral_count: articles.filter((a) => a.sentiment === "neutral").length,
+  };
+
+  const [filter, setFilter] = useState<"all" | "positive" | "negative" | "neutral">("all");
+
+  const filteredArticles = articles.filter(
+    (a) => filter === "all" || a.sentiment === filter
+  );
+
+  return (
+    <div className="ap-tab-content">
+      {/* Sentiment Filter bar */}
+      <div className="mp-news-filter-bar">
+        <button
+          type="button"
+          className={`mp-news-filter-btn ${filter === "all" ? "active" : ""}`}
+          onClick={() => setFilter("all")}
+        >
+          All News ({articles.length})
+        </button>
+        <button
+          type="button"
+          className={`mp-news-filter-btn ${filter === "positive" ? "active" : ""}`}
+          onClick={() => setFilter("positive")}
+        >
+          🟢 Positive ({sentiment.positive_count})
+        </button>
+        <button
+          type="button"
+          className={`mp-news-filter-btn ${filter === "negative" ? "active" : ""}`}
+          onClick={() => setFilter("negative")}
+        >
+          🔴 Negative / Scrutiny ({sentiment.negative_count})
+        </button>
+        <button
+          type="button"
+          className={`mp-news-filter-btn ${filter === "neutral" ? "active" : ""}`}
+          onClick={() => setFilter("neutral")}
+        >
+          ⚪ Policy & Neutral ({sentiment.neutral_count})
+        </button>
+      </div>
+
+      {filteredArticles.length === 0 ? (
+        <div className="empty">
+          <Newspaper size={22} />
+          <h3>No news articles found</h3>
+          <p>No articles match the selected sentiment filter.</p>
+        </div>
+      ) : (
+        <div className="mp-news-grid">
+          {filteredArticles.map((article) => (
+            <div key={article.id} className={`mp-news-card ${article.sentiment}`}>
+              <div className="mp-news-header">
+                <h4 className="mp-news-title">{article.title}</h4>
+                <span className={`sentiment-badge ${article.sentiment}`}>
+                  {article.sentiment === "positive" && "🟢 Positive"}
+                  {article.sentiment === "negative" && "🔴 Negative"}
+                  {article.sentiment === "neutral" && "⚪ Neutral"}
+                </span>
+              </div>
+              <div className="mp-news-meta">
+                <span><strong>{article.source}</strong></span>
+                <span>·</span>
+                <span>{fmtDate(article.published_date)}</span>
+              </div>
+              <p className="mp-news-summary">{article.summary}</p>
+              {article.sentiment_reason && (
+                <div className="mp-news-reason">
+                  <strong>Assessment:</strong> {article.sentiment_reason}
+                </div>
+              )}
+              {article.media_quote && (
+                <p className="muted small" style={{ fontStyle: "italic", marginBottom: 10 }}>
+                  "{article.media_quote}"
+                </p>
+              )}
+              <div className="mp-news-footer">
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  Read original report <ArrowUpRight size={12} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main profile component
 // ---------------------------------------------------------------------------
@@ -573,7 +733,7 @@ export type ProfileFilters = {
   session: string;
 };
 
-type Tab = "attendance" | "speeches";
+type Tab = "attendance" | "speeches" | "media" | "news";
 
 interface MPActivityProfileProps {
   mp: MP;
@@ -702,7 +862,26 @@ export function MPActivityProfile({
           <ArrowLeft size={18} />
         </button>
         <div className="ap-identity">
-          <span className="avatar profile-avatar">{initials(mp.name)}</span>
+          <div className="avatar-container profile-avatar-container">
+            {mp.avatar_url ? (
+              <img
+                src={mp.avatar_url}
+                alt={mp.name}
+                className="avatar-photo profile-avatar-photo"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                  const sib = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
+                  if (sib) sib.style.display = "flex";
+                }}
+              />
+            ) : null}
+            <span
+              className="avatar profile-avatar"
+              style={{ display: mp.avatar_url ? "none" : "flex" }}
+            >
+              {initials(mp.name)}
+            </span>
+          </div>
           <div>
             <h2 className="ap-name">{mp.name}</h2>
             <p className="ap-meta">
@@ -982,6 +1161,32 @@ export function MPActivityProfile({
             <span className="ap-tab-count">{spe.count}</span>
           )}
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === "media"}
+          className={`ap-tab ${tab === "media" ? "ap-tab-active" : ""}`}
+          onClick={() => setTab("media")}
+          id="tab-media"
+          aria-controls="panel-media"
+        >
+          <Radio size={15} /> Public & Media Pledges
+          {(mp.public_media_statements?.length || 0) > 0 && (
+            <span className="ap-tab-count">{mp.public_media_statements?.length}</span>
+          )}
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "news"}
+          className={`ap-tab ${tab === "news" ? "ap-tab-active" : ""}`}
+          onClick={() => setTab("news")}
+          id="tab-news"
+          aria-controls="panel-news"
+        >
+          <Newspaper size={15} /> News & Sentiment
+          {(mp.news_articles?.length || 0) > 0 && (
+            <span className="ap-tab-count">{mp.news_articles?.length}</span>
+          )}
+        </button>
       </div>
 
       {/* Tab panels */}
@@ -1010,6 +1215,22 @@ export function MPActivityProfile({
             onTopicClear={() => setActiveTopic("")}
           />
         )}
+      </div>
+      <div
+        role="tabpanel"
+        id="panel-media"
+        aria-labelledby="tab-media"
+        hidden={tab !== "media"}
+      >
+        {tab === "media" && <MediaStatementsTab mp={mp} />}
+      </div>
+      <div
+        role="tabpanel"
+        id="panel-news"
+        aria-labelledby="tab-news"
+        hidden={tab !== "news"}
+      >
+        {tab === "news" && <NewsSentimentTab mp={mp} />}
       </div>
 
       {/* Footer note */}

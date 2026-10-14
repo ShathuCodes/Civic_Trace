@@ -58,6 +58,39 @@ export interface MP {
     broken: number;
     compromised: number;
   };
+  news_sentiment?: {
+    positive_count: number;
+    negative_count: number;
+    neutral_count: number;
+  };
+  news_articles?: MPNewsArticle[];
+  public_media_statements?: MPMediaStatement[];
+}
+
+export interface MPNewsArticle {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  published_date: string;
+  sentiment: "positive" | "negative" | "neutral";
+  summary: string;
+  sentiment_reason: string;
+  media_quote?: string;
+}
+
+export interface MPMediaStatement {
+  id: string;
+  date: string;
+  platform: string;
+  topic: string;
+  statement: string;
+  parliamentary_match?: {
+    speech_id?: string;
+    sitting_date?: string;
+    status: "aligned" | "in_progress" | "contradicted" | "unaddressed";
+    note: string;
+  };
 }
 
 export interface CommitmentTimelineEvent {
